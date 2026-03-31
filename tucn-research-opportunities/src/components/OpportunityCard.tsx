@@ -8,63 +8,46 @@ interface OpportunityCardProps {
 }
 
 const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <motion.article
       layout
-      initial={{ height: 'auto' }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      whileHover={{ y: -4 }}
-      className="bg-white border-2 border-primary rounded-xl p-6 flex flex-col group cursor-pointer overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+      whileHover={{ y: -5, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}
+      className="bg-white rounded-lg overflow-hidden cursor-pointer border border-gray-200"
       onClick={() => onClick(opportunity)}
     >
-      <div className="flex flex-wrap gap-2 mb-3">
-        {opportunity.tags.map((tag, idx) => (
-          <span
-            key={idx}
-            className={`font-label text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
-              idx === 0 ? 'text-primary bg-primary/5' : 'text-tertiary bg-tertiary/5'
-            }`}
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-
-      <h2 className="font-headline text-lg font-extrabold leading-tight text-on-surface tracking-tight group-hover:text-primary transition-colors mb-3">
-        {opportunity.title}
-      </h2>
-
-      <AnimatePresence initial={false}>
-        {isHovered && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <p className="text-sm text-secondary leading-relaxed mb-4 pt-1 border-t border-outline-variant/10">
-              {opportunity.description}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex items-center gap-3 mt-auto pt-3 border-t border-outline-variant/5">
-        <div className="w-8 h-8 rounded-full overflow-hidden border border-primary/20 flex-shrink-0">
-          <img
-            src={opportunity.author.avatar}
-            alt={opportunity.author.name}
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
+      <div className="p-5">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {opportunity.tags.slice(0, 2).map((tag, idx) => (
+            <span
+              key={idx}
+              className="font-sans text-[10px] font-semibold tracking-wide uppercase px-2 py-1 rounded bg-blue-100 text-utcn-blue"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-xs font-bold text-on-surface truncate">{opportunity.author.name}</span>
-          <span className="text-[9px] text-secondary truncate uppercase tracking-wider">{opportunity.author.department}</span>
+
+        <h2 className="font-bold text-md leading-tight text-gray-800 transition-colors mb-3 h-12">
+          {opportunity.title}
+        </h2>
+
+        <p className="text-xs text-gray-500 leading-relaxed mb-4 h-16 overflow-hidden">
+          {opportunity.description}
+        </p>
+
+        <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+          <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0">
+            <img
+              src={opportunity.author.avatar}
+              alt={opportunity.author.name}
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-semibold text-gray-700 truncate">{opportunity.author.name}</span>
+            <span className="text-[10px] text-gray-500 truncate uppercase tracking-wider">{opportunity.author.department}</span>
+          </div>
         </div>
       </div>
     </motion.article>
