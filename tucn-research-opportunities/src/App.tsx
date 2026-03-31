@@ -536,7 +536,7 @@ export default function App() {
             <a href="#" className="text-[#f6eff1]/60 hover:text-white transition-colors">Archive Access</a>
           </div>
           <div className="text-[#f6eff1]/40 font-body text-[10px] tracking-[0.1em] uppercase">
-            © 2024 TUCN Academic Editorial. All rights reserved.
+            © 2026 TUCN. All rights reserved.
           </div>
         </div>
       </footer>
