@@ -5,6 +5,7 @@ export interface Opportunity {
   description: string;
   abstract: string;
   author: {
+    id: string;
     name: string;
     department: string;
     avatar: string;
@@ -19,6 +20,40 @@ export interface Opportunity {
   };
 }
 
+export type Role = 'student' | 'professor';
+
+export interface User {
+  id: string;
+  name: string;
+  role: Role;
+  avatar: string;
+  department?: string;
+}
+
+export interface Application {
+  id: string;
+  opportunityId: string;
+  studentId: string;
+  studentName: string;
+  message: string;
+  date: string;
+}
+
+export const MOCK_STUDENT: User = {
+  id: "s1",
+  name: "Alexandru Pop",
+  role: 'student',
+  avatar: "https://picsum.photos/seed/alexandru/100/100"
+};
+
+export const MOCK_PROFESSOR: User = {
+  id: "p1",
+  name: "Dr. Andrew Julian",
+  role: 'professor',
+  department: "Computer Science",
+  avatar: "https://picsum.photos/seed/julian/100/100"
+};
+
 export const MOCK_OPPORTUNITIES: Opportunity[] = [
   {
     id: "29401",
@@ -27,6 +62,7 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     description: "Join our interdisciplinary team in high-frequency neural processing. Weekly stipends available for dedicated students.",
     abstract: "This editorial explores the intersection of high-frequency neural processing and quantum-gate efficiency. We are seeking undergraduate and graduate contributors to assist in documenting the performance metrics of the new Q-Symmetry framework. Selected participants will contribute to a peer-reviewed publication and present findings at the upcoming Trans-Academic Symposium.",
     author: {
+      id: "p1",
       name: "Dr. Andrew Julian",
       department: "Computer Science",
       avatar: "https://picsum.photos/seed/julian/100/100"
@@ -47,6 +83,7 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     description: "Research assistant needed for rendering engine optimizations using hardware-accelerated ray tracing.",
     abstract: "This project provides hands-on experience with modern rendering APIs. We are investigating novel denoising algorithms for real-time global illumination. Students will work directly with modern GPUs.",
     author: {
+      id: "p2",
       name: "Prof. Sarah Jenkins",
       department: "Software Engineering",
       avatar: "https://picsum.photos/seed/sarah/100/100"
@@ -67,6 +104,7 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     description: "Assist the AI Lab in detecting objects in low-visibility environments for autonomous drones.",
     abstract: "Work closely with our robotics team to improve computer vision accuracy. You will deploy models directly on edge devices (NVIDIA Jetson) and test drones in real environments.",
     author: {
+      id: "p3",
       name: "Julian Chen",
       department: "Automation",
       avatar: "https://picsum.photos/seed/chen/100/100"
@@ -87,6 +125,7 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     description: "Develop federated learning protocols for IoT sensing networks.",
     abstract: "This grant focuses on bringing machine learning directly to tiny edge devices. We minimize power consumption while ensuring the devices can cooperatively train a shared model.",
     author: {
+      id: "p4",
       name: "Dr. Elena Vasilescu",
       department: "Telecommunications",
       avatar: "https://picsum.photos/seed/elena/100/100"
@@ -107,6 +146,7 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     description: "Join the Electrical Engineering team to analyze vulnerabilities in renewable energy grids.",
     abstract: "Security vulnerabilities in smart grids can lead to blackouts if left unchecked. We are mapping hardware flaws in common substations and proposing software countermeasures.",
     author: {
+      id: "p5",
       name: "Dr. Vasile Muresan",
       department: "Electrical Engineering",
       avatar: "https://picsum.photos/seed/miller/100/100"
@@ -127,6 +167,7 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     description: "Submit your proposal for advancing medical LLMs for Romanian hospital records.",
     abstract: "Extracting entities from unstructured medical data in Romanian. We aim to create a dataset and fine-tune open-source LLMs specifically for medical diagnostics in Romanian.",
     author: {
+      id: "p6",
       name: "Anna Sokolova",
       department: "Computer Science",
       avatar: "https://picsum.photos/seed/anna/100/100"
@@ -147,6 +188,7 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     description: "Build adaptive traffic light controllers using LoRaWAN sensors.",
     abstract: "The project uses live traffic data to dynamically adjust city intersection signals. Requires background in hardware prototyping and wireless sensor networks.",
     author: {
+      id: "p7",
       name: "Prof. Ionut Dan",
       department: "Telecommunications",
       avatar: "https://picsum.photos/seed/lucas/100/100"
