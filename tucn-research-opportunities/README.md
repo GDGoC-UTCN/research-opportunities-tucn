@@ -1,75 +1,61 @@
-# React + TypeScript + Vite
+# TUCN Research Opportunities 🎓
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, responsive web application built to connect students and professors at the Technical University of Cluj-Napoca (UTCN). This platform serves as a centralized hub for academic research projects, making it easy for professors to post opportunities and for students to discover and apply to them.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**🔵 For Students:**
+- **Browse Opportunities:** View a list of available research topics across fields like Artificial Intelligence, Computer Graphics, Robotics, and Software Engineering.
+- **Apply to Projects:** Send a quick application by writing a short letter of intent directly on the platform.
+- **View Details:** Read full descriptions, requirements, and tech stack tags for each project.
 
-## React Compiler
+**🎓 For Professors:**
+- **Create Opportunities:** Post new research ideas specifying details, requirements, and relevant tags.
+- **Manage Dashboard:** Access a personal dashboard (`My Dashboard`) to view only the projects they have created.
+- **Review Applicants:** View a list of all students who have applied to their projects, including the student's name, email, and application message.
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+## 🛠 Tech Stack
 
-Note: This will impact Vite dev & build performances.
+- **Frontend Framework:** [React 19](https://react.dev/) powered by [Vite](https://vitejs.dev/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** Custom UTCN-themed [Tailwind CSS v4](https://tailwindcss.com/)
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **Animations:** [Framer Motion](https://www.framer.com/motion/)
 
-## Expanding the ESLint configuration
+## ⚙️ Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
+Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Installation & Running
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1. Clone the repository and navigate to the project directory:
+   ```bash
+   git clone https://github.com/GDGoC-UTCN/research-opportunities-tucn.git
+   cd research-opportunities-tucn
+   cd tucn-research-opportunities
+   ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+2. Install the dependencies:
+   ```bash
+   npm install
+   ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+4. Open your browser and visit: `http://localhost:3000/`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🔐 Mock Authentication Flow
+
+This project currently uses a simulated state-based authentication system:
+- Click **"Login as Student"** to view the application through the eyes of an applicant.
+- Click **"Login as Professor"** to unlock the "Create Opportunity" form and the Professor Dashboard.
+- You can switch between accounts at any time by clicking **"Log Out"** in the top right corner.
+
+*Note: All data including users, projects, and applications are currently stored in memory (mock data) and will reset upon a page refresh.*
+
+## 🎨 UI/UX Design
+The platform uses the official **UTCN Blue (`#0066b3`)** alongside modern soft shadows, rounded corners, and smooth Framer Motion transitions to ensure an accessible and premium experience.
