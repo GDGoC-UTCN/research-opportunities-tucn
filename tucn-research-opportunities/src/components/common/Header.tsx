@@ -14,7 +14,7 @@ interface Props {
 
 export default function Header({ currentUser, setView, showUserMenu, setShowUserMenu, handleLogout }: Props) {
   return (
-    <div className="bg-utcn-red text-white shadow-md">
+    <div className="bg-utcn-primary text-white shadow-md">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center space-x-4 cursor-pointer" onClick={() => setView(currentUser?.role === 'professor' ? 'dashboard' : 'list')}>

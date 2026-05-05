@@ -67,7 +67,7 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
                 fields.map((field, idx) => (
                   <div key={field.id}>
                     <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                      <span className="text-utcn-red mr-1.5">{idx + 1}.</span>
+                      <span className="text-utcn-primary mr-1.5">{idx + 1}.</span>
                       {field.question}
                     </label>
                     <textarea
@@ -76,7 +76,7 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
                       value={answers[field.id]}
                       onChange={e => setAnswers(prev => ({ ...prev, [field.id]: e.target.value }))}
                       placeholder="Your answer..."
-                      className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-utcn-red focus:border-transparent resize-none"
+                      className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-utcn-primary focus:border-transparent resize-none"
                     />
                   </div>
                 ))
@@ -92,7 +92,7 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   placeholder="Introduce yourself and explain why you're a good fit..."
-                  className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-utcn-red focus:border-transparent resize-none"
+                  className="w-full border border-gray-300 rounded-md p-2.5 text-sm focus:ring-2 focus:ring-utcn-primary focus:border-transparent resize-none"
                 />
               </div>
             </div>
@@ -108,7 +108,7 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-utcn-red text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                className="px-6 py-2 bg-utcn-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
                 Submit Application
               </button>

@@ -49,7 +49,7 @@ export default function OpportunityList({
             placeholder="Search titles, descriptions, tags..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-utcn-red focus:bg-white focus:border-transparent outline-none transition-colors"
+            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-utcn-primary focus:bg-white focus:border-transparent outline-none transition-colors"
           />
           <Search className="absolute left-3 top-3.5 text-gray-400" size={20} />
         </div>
@@ -59,7 +59,7 @@ export default function OpportunityList({
             className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-6 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors w-full md:w-auto justify-center md:min-w-[140px]"
           >
             <Filter size={20} />
-            Filters {activeTags.length > 0 && <span className="bg-utcn-red text-white text-xs px-2 py-0.5 rounded-full">{activeTags.length}</span>}
+            Filters {activeTags.length > 0 && <span className="bg-utcn-primary text-white text-xs px-2 py-0.5 rounded-full">{activeTags.length}</span>}
           </button>
 
           <AnimatePresence>
@@ -77,7 +77,7 @@ export default function OpportunityList({
                       key={tag}
                       onClick={() => toggleTag(tag)}
                       className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${activeTags.includes(tag)
-                        ? 'bg-utcn-red text-white'
+                        ? 'bg-utcn-primary text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                     >
@@ -98,7 +98,7 @@ export default function OpportunityList({
           <p className="mt-1 text-gray-500">Try adjusting your search or filters to find what you're looking for.</p>
           <button
             onClick={() => { setSearchQuery(''); activeTags.splice(0, activeTags.length); }}
-            className="mt-4 text-utcn-red hover:underline font-medium"
+            className="mt-4 text-utcn-primary hover:underline font-medium"
           >
             Clear all filters
           </button>
@@ -119,7 +119,7 @@ export default function OpportunityList({
             <div className="mt-10 flex justify-center items-center space-x-4 border-t pt-6">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                className="p-2 rounded-full border border-gray-300 disabled:opacity-50 hover:bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-utcn-red"
+                className="p-2 rounded-full border border-gray-300 disabled:opacity-50 hover:bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-utcn-primary"
                 aria-label="Previous page"
               >
                 <ChevronLeft size={20} />
@@ -129,7 +129,7 @@ export default function OpportunityList({
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                className="p-2 rounded-full border border-gray-300 disabled:opacity-50 hover:bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-utcn-red"
+                className="p-2 rounded-full border border-gray-300 disabled:opacity-50 hover:bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-utcn-primary"
                 aria-label="Next page"
               >
                 <ChevronRight size={20} />

@@ -27,7 +27,7 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
     >
       <div className="flex justify-between items-center mb-6 border-b pb-4">
         <h2 className="text-2xl font-bold text-gray-900">My Posted Projects</h2>
-        <button onClick={() => setView('create')} className="bg-utcn-red text-white px-4 py-2 rounded-lg font-semibold flex items-center shadow hover:bg-red-700 text-sm">
+        <button onClick={() => setView('create')} className="bg-utcn-primary text-white px-4 py-2 rounded-lg font-semibold flex items-center shadow hover:bg-blue-700 text-sm">
           <Plus className="w-5 h-5 mr-1" /> New Project
         </button>
       </div>
@@ -41,7 +41,7 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
               <div key={opp.id} className="border border-gray-200 rounded-lg p-5">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-bold text-lg text-gray-800">{opp.title}</h3>
-                  <span className="bg-red-100 text-utcn-red px-3 py-1 rounded-full text-xs font-semibold">
+                  <span className="bg-blue-100 text-utcn-primary px-3 py-1 rounded-full text-xs font-semibold">
                     {oppApps.length} Applicants
                   </span>
                 </div>
@@ -105,7 +105,7 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                                       <h5 className="text-xs font-bold uppercase tracking-wider text-gray-800 mb-2">Professor Decision</h5>
                                       <textarea
                                         rows={3}
-                                        className="w-full border-gray-300 rounded-md shadow-sm border p-2 text-sm focus:ring-utcn-red focus:border-utcn-red mb-3"
+                                        className="w-full border-gray-300 rounded-md shadow-sm border p-2 text-sm focus:ring-utcn-primary focus:border-utcn-primary mb-3"
                                         placeholder="Write a reply message to the student (optional)..."
                                         value={replyMessages[app.id] ?? ''}
                                         onChange={e => setReplyMessages({...replyMessages, [app.id]: e.target.value})}

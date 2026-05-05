@@ -32,7 +32,7 @@ export default function OpportunityDetail({
       <div className="p-6 sm:p-8">
         {/* Back Nav */}
         <nav className="mb-6">
-          <button onClick={handleBack} className="flex items-center space-x-2 text-sm font-medium text-utcn-red hover:underline">
+          <button onClick={handleBack} className="flex items-center space-x-2 text-sm font-medium text-utcn-primary hover:underline">
             <ArrowLeft size={16} />
             <span>Back to Opportunities</span>
           </button>
@@ -42,7 +42,7 @@ export default function OpportunityDetail({
         <header className="mb-8">
           <div className="flex flex-wrap gap-2 mb-4">
             {selectedOpportunity.tags.map((tag, idx) => (
-              <span key={idx} className="bg-red-100 text-utcn-red px-3 py-1 rounded-full text-xs font-semibold">
+              <span key={idx} className="bg-blue-100 text-utcn-primary px-3 py-1 rounded-full text-xs font-semibold">
                 {tag}
               </span>
             ))}
@@ -63,7 +63,7 @@ export default function OpportunityDetail({
               </span>
             </div>
             <div className="font-semibold">
-              Deadline: <span className="text-red-600">{selectedOpportunity.deadline}</span>
+              Deadline: <span className="text-blue-600">{selectedOpportunity.deadline}</span>
             </div>
           </div>
         </header>
@@ -113,7 +113,7 @@ export default function OpportunityDetail({
                 }
                 setApplyModalOpen(true);
               }}
-              className="w-full sm:w-auto flex-grow bg-utcn-red text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+              className="w-full sm:w-auto flex-grow bg-utcn-primary text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
             >
               {applications.some(a => a.opportunityId === selectedOpportunity.id && a.studentId === currentUser?.id) 
                 ? 'Applied ✓' 

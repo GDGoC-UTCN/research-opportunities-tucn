@@ -59,24 +59,24 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <input name="title" required type="text" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-red focus:border-utcn-red" />
+          <input name="title" required type="text" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
-          <input name="description" required type="text" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-red focus:border-utcn-red" />
+          <input name="description" required type="text" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Full Abstract</label>
-          <textarea name="abstract" required rows={4} className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-red focus:border-utcn-red" />
+          <textarea name="abstract" required rows={4} className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-            <input name="duration" required type="text" placeholder="e.g. 6 Months" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-red focus:border-utcn-red" />
+            <input name="duration" required type="text" placeholder="e.g. 6 Months" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Stipend / Funding</label>
-            <input name="stipend" required type="text" placeholder="e.g. Unpaid or €1,000" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-red focus:border-utcn-red" />
+            <input name="stipend" required type="text" placeholder="e.g. Unpaid or €1,000" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
           </div>
         </div>
 
@@ -90,7 +90,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
             {newOppFields.map((field, idx) => (
               <div key={field.id} className="flex gap-2 items-start">
                 <div className="flex-1 bg-gray-50 border p-2 text-sm rounded-md">{idx + 1}. {field.question}</div>
-                <button type="button" onClick={() => setNewOppFields(prev => prev.filter(f => f.id !== field.id))} className="p-2 text-red-500 hover:bg-red-50 rounded-md">
+                <button type="button" onClick={() => setNewOppFields(prev => prev.filter(f => f.id !== field.id))} className="p-2 text-blue-500 hover:bg-blue-50 rounded-md">
                   <X size={18} />
                 </button>
               </div>
@@ -102,7 +102,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
               value={newFieldQuestion} 
               onChange={e => setNewFieldQuestion(e.target.value)}
               placeholder="Add a question for applicants..." 
-              className="flex-1 border-gray-300 rounded-md shadow-sm border p-2 text-sm focus:ring-utcn-red focus:border-utcn-red"
+              className="flex-1 border-gray-300 rounded-md shadow-sm border p-2 text-sm focus:ring-utcn-primary focus:border-utcn-primary"
               onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -130,7 +130,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
         </div>
 
         <div className="pt-4 flex gap-4 border-t mt-4">
-          <button type="submit" className="bg-utcn-red text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700">
+          <button type="submit" className="bg-utcn-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700">
             Post Opportunity
           </button>
           <button type="button" onClick={() => setView('dashboard')} className="px-6 py-2 rounded-lg font-semibold text-gray-600 hover:bg-gray-100">

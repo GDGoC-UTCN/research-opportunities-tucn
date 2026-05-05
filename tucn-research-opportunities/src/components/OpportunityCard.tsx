@@ -21,7 +21,7 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick 
             <span
               key={idx}
               className="font-sans text-[10px] font-semibold tracking-wide uppercase px-2 py-1 rounded text-white"
-              style={{ backgroundColor: '#D94A4F' }}
+              style={{ backgroundColor: '#1664d3' }}
             >
               {tag}
             </span>

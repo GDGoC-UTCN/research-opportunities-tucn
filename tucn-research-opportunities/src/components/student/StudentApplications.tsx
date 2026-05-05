@@ -27,7 +27,7 @@ export default function StudentApplications({ currentUser, opportunities, applic
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <CheckCircle2 size={48} className="text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">You haven't applied to any opportunities yet.</p>
-          <button onClick={() => setView('list')} className="mt-4 text-utcn-red hover:underline font-medium">Browse Opportunities</button>
+          <button onClick={() => setView('list')} className="mt-4 text-utcn-primary hover:underline font-medium">Browse Opportunities</button>
         </div>
       ) : (
         <div className="space-y-5">
@@ -49,7 +49,7 @@ export default function StudentApplications({ currentUser, opportunities, applic
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <div>
                       <h3
-                        className="font-bold text-gray-900 hover:text-utcn-red cursor-pointer"
+                        className="font-bold text-gray-900 hover:text-utcn-primary cursor-pointer"
                         onClick={() => { const o = opportunities.find(x => x.id === app.opportunityId); if (o) { setSelectedOpportunity(o); setView('detail'); } }}
                       >
                         {opp?.title ?? 'Unknown Opportunity'}
@@ -76,7 +76,7 @@ export default function StudentApplications({ currentUser, opportunities, applic
                   )}
                 </div>
                 {app.professorReply && (
-                  <div className="border-t bg-red-50 p-5">
+                  <div className="border-t bg-blue-50 p-5">
                     <div className="flex items-center gap-2 mb-2">
                       <img src={opp?.author.avatar} alt={opp?.author.name} className="w-6 h-6 rounded-full" />
                       <span className="text-xs font-semibold text-gray-700">{opp?.author.name}</span>

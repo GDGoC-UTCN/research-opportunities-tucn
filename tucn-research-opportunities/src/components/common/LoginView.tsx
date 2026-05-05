@@ -16,7 +16,7 @@ export default function LoginView({ handleLogin }: Props) {
         <div className="space-y-4">
           <button 
             onClick={() => handleLogin('student')}
-            className="w-full py-3 px-4 bg-utcn-red text-white rounded-lg font-semibold hover:bg-red-700 transition"
+            className="w-full py-3 px-4 bg-utcn-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition"
           >
             Continue as Student
           </button>
