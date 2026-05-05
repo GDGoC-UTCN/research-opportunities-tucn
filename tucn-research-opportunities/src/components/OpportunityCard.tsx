@@ -20,7 +20,8 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick 
           {opportunity.tags.slice(0, 2).map((tag, idx) => (
             <span
               key={idx}
-              className="font-sans text-[10px] font-semibold tracking-wide uppercase px-2 py-1 rounded bg-blue-100 text-utcn-blue"
+              className="font-sans text-[10px] font-semibold tracking-wide uppercase px-2 py-1 rounded text-white"
+              style={{ backgroundColor: '#D94A4F' }}
             >
               {tag}
             </span>

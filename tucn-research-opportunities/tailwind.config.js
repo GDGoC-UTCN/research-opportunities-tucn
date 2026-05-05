@@ -7,7 +7,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        'utcn-blue': '#0066b3',
+        'utcn-red': '#BB181D',
+        'utcn-light-red': '#D94A4F'
       },
     },
   },

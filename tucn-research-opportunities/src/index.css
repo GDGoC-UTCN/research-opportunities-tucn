@@ -1,11 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-    --color-utcn-blue: #0066b3;
+    --color-utcn-red: #BB181D;
+}
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
 }
 
 body {
     background-color: #f3f4f6; /* gray-100 */
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    overscroll-behavior: none;
 }
 
