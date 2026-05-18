@@ -47,7 +47,33 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
         avatar:     currentUser.avatar,
       },
     };
-    setOpportunities([newOpp, ...opportunities]);
+
+    // Persist to backend so all users see the new opportunity
+    fetch('/api/opportunities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: newOpp.title,
+        description: newOpp.description,
+        abstract: newOpp.abstract,
+        stipend: newOpp.stipend,
+        duration: newOpp.duration,
+        deadline: newOpp.deadline,
+        tags: newOpp.tags,
+        applicationFields: newOpp.applicationFields,
+        requireCv: newOpp.requireCv,
+        requireTranscript: newOpp.requireTranscript,
+        author: newOpp.author,
+      }),
+    })
+      .then(r => r.json())
+      .then(json => {
+        // Use the server-assigned ID so deletes work correctly
+        if (json.id) newOpp.id = String(json.id);
+      })
+      .catch(() => { /* server unreachable — keep local id */ });
+
+    setOpportunities(prev => [newOpp, ...prev]);
     setNewOppFields([]);
     setView('dashboard');
   };

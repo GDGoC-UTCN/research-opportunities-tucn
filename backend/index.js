@@ -19,6 +19,24 @@ db.serialize(() => {
     password TEXT,
     approved INTEGER DEFAULT 0
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS opportunities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    abstract TEXT,
+    stipend TEXT,
+    duration TEXT,
+    deadline TEXT,
+    tags TEXT DEFAULT '[]',
+    application_fields TEXT DEFAULT '[]',
+    require_cv INTEGER DEFAULT 0,
+    require_transcript INTEGER DEFAULT 0,
+    author_id TEXT,
+    author_name TEXT,
+    author_department TEXT,
+    author_avatar TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
 });
 
 const app = express();
@@ -88,6 +106,56 @@ app.post('/admin/approve', (req, res) => {
 
 // Simple healthcheck
 app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Opportunities: list all
+app.get('/opportunities', (req, res) => {
+  db.all(`SELECT * FROM opportunities ORDER BY created_at DESC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    const mapped = rows.map(r => ({
+      id: String(r.id),
+      title: r.title,
+      description: r.description,
+      abstract: r.abstract,
+      stipend: r.stipend,
+      duration: r.duration,
+      deadline: r.deadline || 'December 31, 2026',
+      postDate: r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Today',
+      tags: JSON.parse(r.tags || '[]'),
+      applicationFields: JSON.parse(r.application_fields || '[]'),
+      requireCv: !!r.require_cv,
+      requireTranscript: !!r.require_transcript,
+      requirements: { technical: ['To be specified'], eligibility: ['To be specified'] },
+      author: { id: r.author_id, name: r.author_name, department: r.author_department, avatar: r.author_avatar },
+    }));
+    return res.json({ opportunities: mapped });
+  });
+});
+
+// Opportunities: create
+app.post('/opportunities', (req, res) => {
+  const { title, description, abstract, stipend, duration, deadline, tags, applicationFields, requireCv, requireTranscript, author } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required' });
+  db.run(
+    `INSERT INTO opportunities (title,description,abstract,stipend,duration,deadline,tags,application_fields,require_cv,require_transcript,author_id,author_name,author_department,author_avatar)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [title, description, abstract, stipend, duration, deadline || 'December 31, 2026',
+     JSON.stringify(tags || []), JSON.stringify(applicationFields || []),
+     requireCv ? 1 : 0, requireTranscript ? 1 : 0,
+     author?.id, author?.name, author?.department, author?.avatar],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      return res.json({ id: String(this.lastID) });
+    }
+  );
+});
+
+// Opportunities: delete
+app.delete('/opportunities/:id', (req, res) => {
+  db.run(`DELETE FROM opportunities WHERE id = ?`, [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    return res.json({ ok: true });
+  });
+});
 
 // Admin: delete user by id or email
 app.delete('/admin/users/:key', (req, res) => {

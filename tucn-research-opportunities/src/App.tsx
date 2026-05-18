@@ -261,10 +261,11 @@ export default function App() {
     }
   };
 
-  const deletePost = (postId: string) => {
-    // remove opportunity locally (no server persistence for opportunities yet)
+  const deletePost = async (postId: string) => {
+    try {
+      await fetch(`/api/opportunities/${encodeURIComponent(postId)}`, { method: 'DELETE' });
+    } catch { /* ignore network error */ }
     setOpportunities(prev => prev.filter(p => p.id !== postId));
-    alert('Post deleted (local)');
   };
 
   const handleLogout = () => {
@@ -277,7 +278,16 @@ export default function App() {
 
   const loadPostings = async () => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+      const res = await fetch('/api/opportunities');
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.opportunities) && json.opportunities.length > 0) {
+          setOpportunities(json.opportunities);
+          try { localStorage.setItem('tucn_opportunities', JSON.stringify(json.opportunities)); } catch { /* ignore */ }
+        }
+      }
+    } catch { /* server unreachable — keep localStorage / mock data */ }
     setIsLoading(false);
   };
 
