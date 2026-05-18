@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import bcrypt from 'bcryptjs';
 import { AnimatePresence } from 'motion/react';
 import { MOCK_OPPORTUNITIES, MOCK_APPLICATIONS, Opportunity, User, MOCK_STUDENT, MOCK_STUDENT_2, MOCK_PROFESSOR, MOCK_ADMIN, Application, UploadedFile } from './types';
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -43,41 +44,91 @@ export default function App() {
   };
 
   const handleSignup = (data: { name: string; role: 'student' | 'professor' | 'admin'; department?: string; email?: string; password?: string }) => {
-    const id = Date.now().toString();
-    const newUser: User = {
-      id,
-      name: data.name,
-      role: data.role,
-      avatar: `https://picsum.photos/seed/${encodeURIComponent(data.name)}/100/100`,
-      department: data.department,
-      approved: data.role === 'student' ? true : false,
-      email: data.email,
-      password: data.password,
-    };
-    const updated = [newUser, ...users];
-    setUsers(updated);
-    try { localStorage.setItem('tucn_users', JSON.stringify(updated)); } catch (e) { /* ignore */ }
-    if (newUser.role === 'student') {
-      setCurrentUser(newUser);
-      setView('list');
-    } else if (newUser.role === 'professor') {
-      alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
-    } else if (newUser.role === 'admin') {
-      // admin created via UI — log them in for convenience
-      setCurrentUser(newUser);
-      setView('dashboard');
-    }
+    // Call backend API to create the user
+    (async () => {
+      try {
+        const res = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: data.name, email: data.email, password: data.password, role: data.role, department: data.department }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          alert(json.error || 'Signup failed');
+          return;
+        }
+        // backend returns created user info (id may be numeric)
+        const created = json;
+        const newUser: User = {
+          id: String(created.id),
+          name: created.name,
+          role: created.role || data.role,
+          avatar: `https://picsum.photos/seed/${encodeURIComponent(created.name)}/100/100`,
+          department: created.department,
+          approved: created.approved === 1 || created.approved === true,
+          email: created.email,
+        };
+        const updated = [newUser, ...users.filter(u => u.email !== newUser.email)];
+        setUsers(updated);
+        try { localStorage.setItem('tucn_users', JSON.stringify(updated)); } catch (e) { /* ignore */ }
+        if (newUser.role === 'student') {
+          setCurrentUser(newUser);
+          setView('list');
+        } else if (newUser.role === 'professor') {
+          alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
+        } else if (newUser.role === 'admin') {
+          setCurrentUser(newUser);
+          setView('dashboard');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Signup failed — check console for details');
+      }
+    })();
   };
 
   // Email/password login handler (called from LoginView via a small global hook)
   const handleLoginEmail = (email: string, password: string, role: 'student' | 'professor' | 'admin') => {
-    const user = users.find(u => u.email === email && u.password === password && u.role === role && (role !== 'professor' || u.approved));
-    if (!user) {
-      alert('Invalid credentials or account not approved.');
-      return;
-    }
-    setCurrentUser(user);
-    setView(user.role === 'professor' ? 'dashboard' : user.role === 'admin' ? 'dashboard' : 'list');
+    (async () => {
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          alert(json.error || 'Invalid credentials or account not approved.');
+          return;
+        }
+        const user = json.user || json;
+        // ensure role matches requested role
+        if (user.role !== role) {
+          alert('Logged in user role mismatch');
+          return;
+        }
+        const cur: User = {
+          id: String(user.id),
+          name: user.name,
+          role: user.role,
+          avatar: `https://picsum.photos/seed/${encodeURIComponent(user.name)}/100/100`,
+          department: user.department,
+          approved: user.approved === 1 || user.approved === true,
+          email: user.email,
+        };
+        // add/update user in local cache
+        setUsers(prev => {
+          const merged = [cur, ...prev.filter(u => u.email !== cur.email)];
+          try { localStorage.setItem('tucn_users', JSON.stringify(merged)); } catch (e) {}
+          return merged;
+        });
+        setCurrentUser(cur);
+        setView(cur.role === 'professor' ? 'dashboard' : cur.role === 'admin' ? 'dashboard' : 'list');
+      } catch (err) {
+        console.error(err);
+        alert('Login failed — check console for details');
+      }
+    })();
   };
 
   // expose small global function for the simple login form in LoginView
