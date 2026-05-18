@@ -7,11 +7,11 @@ interface Props {
   currentUser: User;
   opportunities: Opportunity[];
   applications: Application[];
-  setApplications: React.Dispatch<React.SetStateAction<Application[]>>;
+  updateApplicationStatus: (appId: string, status: 'accepted' | 'rejected', professorReply: string) => Promise<void>;
   setView: (view: 'create' | 'detail') => void;
 }
 
-export default function TeacherDashboard({ currentUser, opportunities, applications, setApplications, setView }: Props) {
+export default function TeacherDashboard({ currentUser, opportunities, applications, updateApplicationStatus, setView }: Props) {
   const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
   const [replyMessages, setReplyMessages] = useState<Record<string, string>>({});
 
@@ -171,13 +171,13 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                                       />
                                       <div className="flex gap-2">
                                         <button
-                                          onClick={() => setApplications(applications.map(a => a.id === app.id ? { ...a, status: 'accepted' as const, professorReply: replyMessages[app.id], replyDate: new Date().toLocaleDateString() } : a))}
+                                          onClick={() => updateApplicationStatus(app.id, 'accepted', replyMessages[app.id] ?? '')}
                                           className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                                         >
                                           Accept
                                         </button>
                                         <button
-                                          onClick={() => setApplications(applications.map(a => a.id === app.id ? { ...a, status: 'rejected' as const, professorReply: replyMessages[app.id], replyDate: new Date().toLocaleDateString() } : a))}
+                                          onClick={() => updateApplicationStatus(app.id, 'rejected', replyMessages[app.id] ?? '')}
                                           className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                                         >
                                           Reject

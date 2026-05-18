@@ -37,6 +37,20 @@ db.serialize(() => {
     author_avatar TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    opportunity_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    student_name TEXT,
+    message TEXT,
+    status TEXT DEFAULT 'pending',
+    answers TEXT DEFAULT '[]',
+    cv_file TEXT,
+    transcript_file TEXT,
+    professor_reply TEXT,
+    reply_date TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
 });
 
 const app = express();
@@ -155,6 +169,72 @@ app.delete('/opportunities/:id', (req, res) => {
     if (err) return res.status(500).json({ error: 'DB error' });
     return res.json({ ok: true });
   });
+});
+
+// Applications: list (optionally filtered by studentId or opportunityId query params)
+app.get('/applications', (req, res) => {
+  const { studentId, opportunityId } = req.query;
+  let sql = `SELECT * FROM applications`;
+  const params = [];
+  if (studentId && opportunityId) {
+    sql += ` WHERE student_id = ? AND opportunity_id = ?`;
+    params.push(studentId, opportunityId);
+  } else if (studentId) {
+    sql += ` WHERE student_id = ?`;
+    params.push(studentId);
+  } else if (opportunityId) {
+    sql += ` WHERE opportunity_id = ?`;
+    params.push(opportunityId);
+  }
+  sql += ` ORDER BY created_at DESC`;
+  db.all(sql, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    const mapped = rows.map(r => ({
+      id: String(r.id),
+      opportunityId: r.opportunity_id,
+      studentId: r.student_id,
+      studentName: r.student_name,
+      message: r.message,
+      status: r.status,
+      answers: JSON.parse(r.answers || '[]'),
+      cvFile: r.cv_file ? JSON.parse(r.cv_file) : undefined,
+      transcriptFile: r.transcript_file ? JSON.parse(r.transcript_file) : undefined,
+      professorReply: r.professor_reply || undefined,
+      replyDate: r.reply_date || undefined,
+      date: r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Today',
+    }));
+    return res.json({ applications: mapped });
+  });
+});
+
+// Applications: create
+app.post('/applications', (req, res) => {
+  const { opportunityId, studentId, studentName, message, answers, cvFile, transcriptFile } = req.body;
+  if (!opportunityId || !studentId) return res.status(400).json({ error: 'Missing required fields' });
+  db.run(
+    `INSERT INTO applications (opportunity_id,student_id,student_name,message,answers,cv_file,transcript_file) VALUES (?,?,?,?,?,?,?)`,
+    [opportunityId, studentId, studentName, message,
+     JSON.stringify(answers || []),
+     cvFile ? JSON.stringify(cvFile) : null,
+     transcriptFile ? JSON.stringify(transcriptFile) : null],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      return res.json({ id: String(this.lastID) });
+    }
+  );
+});
+
+// Applications: update status + professor reply
+app.patch('/applications/:id', (req, res) => {
+  const { status, professorReply, replyDate } = req.body;
+  db.run(
+    `UPDATE applications SET status = ?, professor_reply = ?, reply_date = ? WHERE id = ?`,
+    [status, professorReply || null, replyDate || null, req.params.id],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      return res.json({ ok: true });
+    }
+  );
 });
 
 // Admin: delete user by id or email

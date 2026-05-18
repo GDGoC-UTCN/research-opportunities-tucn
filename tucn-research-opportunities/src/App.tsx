@@ -57,7 +57,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(initialSession?.user ?? null);
   const [users, setUsers] = useState<User[]>([MOCK_ADMIN, MOCK_STUDENT, MOCK_STUDENT_2, { ...MOCK_PROFESSOR, approved: true }]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(savedOpportunities() ?? MOCK_OPPORTUNITIES);
-  const [applications, setApplications] = useState<Application[]>(MOCK_APPLICATIONS);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [view, setView] = useState<View>(initialSession ? safeInitialView : 'login');
   
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
@@ -176,6 +176,7 @@ export default function App() {
       setView(nextView);
       try { localStorage.setItem('tucn_session', JSON.stringify({ user: cur, view: nextView })); } catch { /* ignore */ }
       window.history.pushState({}, '', '/');
+      loadApplications(cur).catch(() => {});
       return cur;
     } catch (err) {
       console.error('Login failed:', err);
@@ -268,6 +269,24 @@ export default function App() {
     setOpportunities(prev => prev.filter(p => p.id !== postId));
   };
 
+  const updateApplicationStatus = async (
+    appId: string,
+    status: 'accepted' | 'rejected',
+    professorReply: string,
+  ) => {
+    const replyDate = new Date().toLocaleDateString();
+    try {
+      await fetch(`/api/applications/${encodeURIComponent(appId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, professorReply, replyDate }),
+      });
+    } catch { /* ignore */ }
+    setApplications(prev =>
+      prev.map(a => a.id === appId ? { ...a, status, professorReply, replyDate } : a)
+    );
+  };
+
   const handleLogout = () => {
     setCurrentUser(null);
     setShowUserMenu(false);
@@ -291,9 +310,28 @@ export default function App() {
     setIsLoading(false);
   };
 
+  const loadApplications = async (forUser?: typeof currentUser) => {
+    const user = forUser ?? currentUser;
+    if (!user) return;
+    try {
+      const param = user.role === 'student' ? `?studentId=${encodeURIComponent(user.id)}` : '';
+      const res = await fetch(`/api/applications${param}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.applications)) {
+          setApplications(json.applications);
+        }
+      }
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     loadPostings();
   }, []);
+
+  useEffect(() => {
+    if (currentUser) loadApplications(currentUser);
+  }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // load users from localStorage (if present)
   useEffect(() => {
@@ -425,7 +463,7 @@ export default function App() {
               currentUser={currentUser}
               opportunities={opportunities}
               applications={applications}
-              setApplications={setApplications}
+              updateApplicationStatus={updateApplicationStatus}
               setView={setView}
             />
           ) : view === 'dashboard' && currentUser?.role === 'admin' ? (
@@ -464,7 +502,7 @@ export default function App() {
       {applyModalOpen && selectedOpportunity && currentUser && (
         <ApplicationModal
           opportunity={selectedOpportunity}
-          onSubmit={(message, answers, cvFile, transcriptFile) => {
+          onSubmit={async (message, answers, cvFile, transcriptFile) => {
             const newApp: Application = {
               id: Date.now().toString(),
               opportunityId: selectedOpportunity.id,
@@ -477,7 +515,25 @@ export default function App() {
               cvFile,
               transcriptFile,
             };
-            setApplications([...applications, newApp]);
+            // Persist to backend so professor sees the application
+            try {
+              const res = await fetch('/api/applications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  opportunityId: newApp.opportunityId,
+                  studentId: newApp.studentId,
+                  studentName: newApp.studentName,
+                  message: newApp.message,
+                  answers: newApp.answers,
+                  cvFile: newApp.cvFile,
+                  transcriptFile: newApp.transcriptFile,
+                }),
+              });
+              const json = await res.json().catch(() => ({}));
+              if (json.id) newApp.id = String(json.id);
+            } catch { /* server unreachable — keep local id */ }
+            setApplications(prev => [...prev, newApp]);
             setApplyModalOpen(false);
           }}
           onClose={() => setApplyModalOpen(false)}
