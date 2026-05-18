@@ -61,12 +61,21 @@ app.get('/admin/pending', (req, res) => {
 
 // Admin: approve professor
 app.post('/admin/approve', (req, res) => {
-  const { id } = req.body;
-  if (!id) return res.status(400).json({ error: 'Missing id' });
-  db.run(`UPDATE users SET approved = 1 WHERE id = ?`, [id], function(err) {
-    if (err) return res.status(500).json({ error: 'DB error' });
-    return res.json({ ok: true });
-  });
+  const { id, email } = req.body;
+  if (!id && !email) return res.status(400).json({ error: 'Missing id or email' });
+  if (id) {
+    db.run(`UPDATE users SET approved = 1 WHERE id = ?`, [id], function(err) {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
+      return res.json({ ok: true });
+    });
+  } else {
+    db.run(`UPDATE users SET approved = 1 WHERE email = ?`, [email], function(err) {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
+      return res.json({ ok: true });
+    });
+  }
 });
 
 // Simple healthcheck

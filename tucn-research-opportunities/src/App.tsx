@@ -146,9 +146,33 @@ export default function App() {
   // expose small global function for the simple login form in LoginView
   (window as any).__handleLoginEmail = handleLoginEmail;
 
-  const approveProfessor = (id: string) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, approved: true } : u));
-    alert('Professor approved — they can now log in.');
+  const approveProfessor = async (id: string) => {
+    try {
+      // ask backend to approve the professor so approval is persisted
+      // if id is numeric string, send as number; otherwise include the user's email so backend can match
+      const user = users.find(u => u.id === id);
+      const payload: any = {};
+      const asNum = Number(id);
+      if (!Number.isNaN(asNum) && String(asNum) === String(id)) payload.id = asNum; else if (user && user.email) payload.email = user.email; else payload.id = id;
+      const res = await fetch('/api/admin/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error('Failed to approve on server', res.status, json);
+        alert(json.error || 'Failed to approve professor on server');
+        return;
+      }
+      // update local state after successful server approval
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, approved: true } : u));
+      try { localStorage.setItem('tucn_users', JSON.stringify(users.map(u => u.id === id ? { ...u, approved: true } : u))); } catch (e) { /* ignore */ }
+      alert('Professor approved — they can now log in.');
+    } catch (err) {
+      console.error('Error approving professor', err);
+      alert('Network error while approving — try again');
+    }
   };
 
   const handleLogout = () => {

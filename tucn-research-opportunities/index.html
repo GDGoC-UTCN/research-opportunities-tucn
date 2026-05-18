@@ -12,6 +12,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Temporary: auto-unregister service workers and clear caches to avoid stale SW blocking API calls -->
+    <script>
+      (function(){
+        if ('serviceWorker' in navigator) {
+          try {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              regs.forEach(r => r.unregister());
+            }).catch(()=>{});
+          } catch (e) {}
+        }
+        if ('caches' in window) {
+          try { caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(()=>{}); } catch (e) {}
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
