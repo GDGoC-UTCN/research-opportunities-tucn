@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 import { Opportunity, ApplicationField, User } from '../../types';
 
 interface Props {
@@ -14,38 +14,42 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
   const [newOppFields, setNewOppFields] = useState<ApplicationField[]>([]);
   const [newFieldQuestion, setNewFieldQuestion] = useState('');
 
+  const addField = () => {
+    if (newFieldQuestion.trim() && newOppFields.length < 20) {
+      setNewOppFields([...newOppFields, { id: Date.now().toString(), question: newFieldQuestion.trim() }]);
+      setNewFieldQuestion('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const title = formData.get('title') as string;
-    const abstract = formData.get('abstract') as string;
-    const desc = formData.get('description') as string;
-    const stipend = formData.get('stipend') as string;
-    const dur = formData.get('duration') as string;
-    
     const newOpp: Opportunity = {
       id: Date.now().toString(),
-      title,
-      abstract,
-      description: desc,
-      stipend,
-      duration: dur,
-      deadline: "December 31, 2026",
-      postDate: "Today",
-      tags: ["NEW", "RESEARCH"],
-      requirements: { technical: ["To be specified"], eligibility: ["To be specified"] },
+      title:       formData.get('title') as string,
+      abstract:    formData.get('abstract') as string,
+      description: formData.get('description') as string,
+      stipend:     formData.get('stipend') as string,
+      duration:    formData.get('duration') as string,
+      deadline:    'December 31, 2026',
+      postDate:    'Today',
+      tags:        ['NEW', 'RESEARCH'],
+      requirements: { technical: ['To be specified'], eligibility: ['To be specified'] },
       applicationFields: newOppFields,
       author: {
-        id: currentUser.id,
-        name: currentUser.name,
+        id:         currentUser.id,
+        name:       currentUser.name,
         department: currentUser.department || 'General',
-        avatar: currentUser.avatar
-      }
+        avatar:     currentUser.avatar,
+      },
     };
     setOpportunities([newOpp, ...opportunities]);
     setNewOppFields([]);
     setView('dashboard');
   };
+
+  const inputClass = 'w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-utcn-primary focus:border-transparent outline-none transition bg-white placeholder:text-gray-300';
+  const labelClass = 'block text-sm font-semibold text-gray-700 mb-1.5';
 
   return (
     <motion.div
@@ -53,91 +57,129 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="bg-white rounded-lg shadow-lg overflow-hidden p-6 sm:p-8 max-w-3xl mx-auto"
+      className="max-w-3xl mx-auto"
     >
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Post a New Opportunity</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <input name="title" required type="text" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
-          <input name="description" required type="text" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Full Abstract</label>
-          <textarea name="abstract" required rows={4} className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-            <input name="duration" required type="text" placeholder="e.g. 6 Months" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Stipend / Funding</label>
-            <input name="stipend" required type="text" placeholder="e.g. Unpaid or €1,000" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-primary focus:border-utcn-primary" />
-          </div>
+      {/* Back nav */}
+      <button
+        onClick={() => setView('dashboard')}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-utcn-primary mb-5 transition-colors group"
+      >
+        <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+        Back to Dashboard
+      </button>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-utcn-navy to-utcn-primary px-8 py-7 text-white">
+          <h1 className="text-xl font-bold">Post a New Research Opportunity</h1>
+          <p className="text-blue-200 text-sm mt-1">Fill in the details below. Students will see this on the board.</p>
         </div>
 
-        {/* Question Builder */}
-        <div className="pt-4 border-t mt-4">
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-gray-700">Application Questions (Optional)</label>
-            <span className="text-xs font-semibold text-gray-500">{newOppFields.length} / 20</span>
+        <form onSubmit={handleSubmit} className="p-7 md:p-8 space-y-5">
+
+          {/* Title */}
+          <div>
+            <label className={labelClass}>Title <span className="text-red-400">*</span></label>
+            <input name="title" required type="text" placeholder="e.g. Deep Learning for Medical Imaging" className={inputClass} />
           </div>
-          <div className="space-y-3 mb-3">
-            {newOppFields.map((field, idx) => (
-              <div key={field.id} className="flex gap-2 items-start">
-                <div className="flex-1 bg-gray-50 border p-2 text-sm rounded-md">{idx + 1}. {field.question}</div>
-                <button type="button" onClick={() => setNewOppFields(prev => prev.filter(f => f.id !== field.id))} className="p-2 text-blue-500 hover:bg-blue-50 rounded-md">
-                  <X size={18} />
-                </button>
+
+          {/* Short Description */}
+          <div>
+            <label className={labelClass}>Short Description <span className="text-red-400">*</span></label>
+            <input name="description" required type="text" placeholder="A one-line summary for the card view" className={inputClass} />
+          </div>
+
+          {/* Abstract */}
+          <div>
+            <label className={labelClass}>Full Abstract <span className="text-red-400">*</span></label>
+            <textarea name="abstract" required rows={4} placeholder="Describe the research project in detail…" className={`${inputClass} resize-none`} />
+          </div>
+
+          {/* Duration + Stipend */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Duration <span className="text-red-400">*</span></label>
+              <input name="duration" required type="text" placeholder="e.g. 6 Months" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Stipend / Funding <span className="text-red-400">*</span></label>
+              <input name="stipend" required type="text" placeholder="e.g. Unpaid or €1,000" className={inputClass} />
+            </div>
+          </div>
+
+          {/* Application Questions */}
+          <div className="pt-5 border-t border-gray-100">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Application Questions</label>
+                <p className="text-xs text-gray-400 mt-0.5">Optional — students will answer these when applying</p>
               </div>
-            ))}
+              <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">{newOppFields.length}/20</span>
+            </div>
+
+            {newOppFields.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {newOppFields.map((field, idx) => (
+                  <div key={field.id} className="flex gap-2 items-center bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5">
+                    <span className="text-xs font-bold text-gray-400 w-5 flex-shrink-0">{idx + 1}.</span>
+                    <span className="text-sm text-gray-700 flex-1">{field.question}</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewOppFields(prev => prev.filter(f => f.id !== field.id))}
+                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newFieldQuestion}
+                onChange={e => setNewFieldQuestion(e.target.value)}
+                placeholder="Add a question for applicants…"
+                className={`${inputClass} flex-1`}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addField(); } }}
+              />
+              <button
+                type="button"
+                onClick={addField}
+                disabled={!newFieldQuestion.trim() || newOppFields.length >= 20}
+                className="px-4 py-2.5 bg-slate-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-slate-200 disabled:opacity-40 transition-colors flex-shrink-0"
+              >
+                Add
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <input 
-              type="text" 
-              value={newFieldQuestion} 
-              onChange={e => setNewFieldQuestion(e.target.value)}
-              placeholder="Add a question for applicants..." 
-              className="flex-1 border-gray-300 rounded-md shadow-sm border p-2 text-sm focus:ring-utcn-primary focus:border-utcn-primary"
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (newFieldQuestion.trim() && newOppFields.length < 20) {
-                    setNewOppFields([...newOppFields, { id: Date.now().toString(), question: newFieldQuestion.trim() }]);
-                    setNewFieldQuestion('');
-                  }
-                }
-              }}
-            />
-            <button 
-              type="button" 
-              onClick={() => {
-                if (newFieldQuestion.trim() && newOppFields.length < 20) {
-                  setNewOppFields([...newOppFields, { id: Date.now().toString(), question: newFieldQuestion.trim() }]);
-                  setNewFieldQuestion('');
-                }
-              }}
-              disabled={!newFieldQuestion.trim() || newOppFields.length >= 20}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
+
+          {/* Submit */}
+          <div className="pt-5 border-t border-gray-100 flex items-center gap-3">
+            <button
+              type="submit"
+              className="bg-utcn-primary text-white px-7 py-3 rounded-xl font-semibold text-sm hover:bg-utcn-primary-dark transition-colors shadow-md shadow-blue-100"
             >
-              Add
+              Publish Opportunity
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('dashboard')}
+              className="px-5 py-3 rounded-xl font-semibold text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
             </button>
           </div>
-        </div>
-
-        <div className="pt-4 flex gap-4 border-t mt-4">
-          <button type="submit" className="bg-utcn-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700">
-            Post Opportunity
-          </button>
-          <button type="button" onClick={() => setView('dashboard')} className="px-6 py-2 rounded-lg font-semibold text-gray-600 hover:bg-gray-100">
-            Cancel
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </motion.div>
   );
+}
+
+interface Props {
+  currentUser: User;
+  opportunities: Opportunity[];
+  setOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
+  setView: (view: 'dashboard' | 'list') => void;
 }
