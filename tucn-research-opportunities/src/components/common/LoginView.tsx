@@ -20,6 +20,7 @@ export default function LoginView({ handleLogin, handleSignup }: Props) {
   const initialRole = (typeof window !== 'undefined' && window.location && window.location.pathname === '/admin') ? 'admin' as const : null;
   const [selectedRole, setSelectedRole] = useState<null | 'student' | 'professor' | 'admin'>(initialRole);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [lastError, setLastError] = useState<null | { message: string; status?: number | null; body?: any }>(null);
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row font-sans">
@@ -159,7 +160,19 @@ export default function LoginView({ handleLogin, handleSignup }: Props) {
               </div>
 
               {mode === 'signin' ? (
-                <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); const email = fd.get('loginEmail') as string; const pass = fd.get('loginPass') as string; (window as any).__handleLoginEmail?.(email, pass, selectedRole as any); }} className="grid gap-3">
+                <form onSubmit={async (e) => { 
+                  e.preventDefault(); 
+                  const fd = new FormData(e.currentTarget as HTMLFormElement); 
+                  const email = fd.get('loginEmail') as string; 
+                  const pass = fd.get('loginPass') as string; 
+                  setLastError(null);
+                  try {
+                    await (window as any).__handleLoginEmail?.(email, pass, selectedRole as any);
+                  } catch (err) {
+                    // err is structured { message, status, body }
+                    setLastError(err as any);
+                  }
+                }} className="grid gap-3">
                   <input name="loginEmail" type="email" required placeholder="Email" className="w-full text-sm px-3 py-2 border rounded-lg" />
                   <input name="loginPass" type="password" required placeholder="Password" className="w-full text-sm px-3 py-2 border rounded-lg" />
                   <div className="flex justify-end">
@@ -176,6 +189,19 @@ export default function LoginView({ handleLogin, handleSignup }: Props) {
                     <button type="submit" className="px-3 py-2 bg-utcn-primary text-white rounded-lg">Create account</button>
                   </div>
                 </form>
+              )}
+
+              {/* Error details for debugging login failures */}
+              {lastError && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 text-sm rounded">
+                  <div className="font-semibold text-red-700">Login error: {lastError.message}</div>
+                  <div className="text-xs text-gray-600 mt-1">Status: {String(lastError.status)}</div>
+                  <details className="mt-2 text-xs text-gray-700">
+                    <summary className="cursor-pointer">Response body / debug info (click to expand)</summary>
+                    <pre className="whitespace-pre-wrap mt-2 text-xs">{JSON.stringify(lastError.body, null, 2)}</pre>
+                  </details>
+                  <div className="mt-2 text-xs text-gray-500">Please copy the above details and paste them in the chat or a bug report so I can debug further.</div>
+                </div>
               )}
             </div>
           )}

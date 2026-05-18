@@ -88,47 +88,59 @@ export default function App() {
   };
 
   // Email/password login handler (called from LoginView via a small global hook)
-  const handleLoginEmail = (email: string, password: string, role: 'student' | 'professor' | 'admin') => {
-    (async () => {
-      try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        const json = await res.json();
-        if (!res.ok) {
-          alert(json.error || 'Invalid credentials or account not approved.');
-          return;
-        }
-        const user = json.user || json;
-        // ensure role matches requested role
-        if (user.role !== role) {
-          alert('Logged in user role mismatch');
-          return;
-        }
-        const cur: User = {
-          id: String(user.id),
-          name: user.name,
-          role: user.role,
-          avatar: `https://picsum.photos/seed/${encodeURIComponent(user.name)}/100/100`,
-          department: user.department,
-          approved: user.approved === 1 || user.approved === true,
-          email: user.email,
-        };
-        // add/update user in local cache
-        setUsers(prev => {
-          const merged = [cur, ...prev.filter(u => u.email !== cur.email)];
-          try { localStorage.setItem('tucn_users', JSON.stringify(merged)); } catch (e) {}
-          return merged;
-        });
-        setCurrentUser(cur);
-        setView(cur.role === 'professor' ? 'dashboard' : cur.role === 'admin' ? 'dashboard' : 'list');
-      } catch (err) {
-        console.error(err);
-        alert('Login failed — check console for details');
+  const handleLoginEmail = async (email: string, password: string, role: 'student' | 'professor' | 'admin') => {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      let bodyText = '';
+      let json: any = null;
+      try { bodyText = await res.text(); json = JSON.parse(bodyText); } catch (e) { bodyText = bodyText || String(e); }
+      if (!res.ok) {
+        const err = new Error(json?.error || `Login failed (${res.status})`);
+        // attach extra details
+        (err as any).status = res.status;
+        (err as any).body = json || bodyText;
+        console.error('Login error details:', { status: res.status, body: json || bodyText });
+        throw err;
       }
-    })();
+      const user = json.user || json;
+      if (user.role !== role) {
+        const err = new Error('Logged in user role mismatch');
+        (err as any).status = 200;
+        (err as any).body = user;
+        console.error('Role mismatch on login:', user);
+        throw err;
+      }
+      const cur: User = {
+        id: String(user.id),
+        name: user.name,
+        role: user.role,
+        avatar: `https://picsum.photos/seed/${encodeURIComponent(user.name)}/100/100`,
+        department: user.department,
+        approved: user.approved === 1 || user.approved === true,
+        email: user.email,
+      };
+      setUsers(prev => {
+        const merged = [cur, ...prev.filter(u => u.email !== cur.email)];
+        try { localStorage.setItem('tucn_users', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+      setCurrentUser(cur);
+      setView(cur.role === 'professor' ? 'dashboard' : cur.role === 'admin' ? 'dashboard' : 'list');
+      return cur;
+    } catch (err) {
+      console.error('Login failed:', err);
+      // propagate structured error so UI can display details
+      const data = {
+        message: err.message || 'Login failed',
+        status: (err as any).status || null,
+        body: (err as any).body || null,
+      };
+      throw data;
+    }
   };
 
   // expose small global function for the simple login form in LoginView
