@@ -4,10 +4,11 @@ import Logo from './Logo';
 import { BookOpen, Users, FlaskConical, GraduationCap, ArrowRight } from 'lucide-react';
 
 interface Props {
-  handleLogin: (role: 'student' | 'professor') => void;
+  handleLogin: (role: 'student' | 'professor' | 'admin') => void;
+  handleSignup: (data: { name: string; role: 'student' | 'professor'; department?: string }) => void;
 }
 
-export default function LoginView({ handleLogin }: Props) {
+export default function LoginView({ handleLogin, handleSignup }: Props) {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row font-sans">
 
@@ -124,6 +125,28 @@ export default function LoginView({ handleLogin }: Props) {
               </div>
               <ArrowRight size={16} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
             </motion.button>
+          
+            {/* Signup small form */}
+            <div className="mt-4 bg-white border border-gray-100 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-2">New here? Create an account</p>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.currentTarget as HTMLFormElement;
+                const fd = new FormData(form);
+                const name = fd.get('name') as string;
+                const role = fd.get('role') as 'student' | 'professor';
+                const dept = fd.get('department') as string | undefined;
+                handleSignup({ name, role, department: dept });
+                form.reset();
+              }} className="flex gap-2">
+                <input name="name" required placeholder="Your name" className="flex-1 text-sm px-3 py-2 border rounded-lg" />
+                <select name="role" defaultValue="student" className="text-sm px-2 py-2 border rounded-lg">
+                  <option value="student">Student</option>
+                  <option value="professor">Professor</option>
+                </select>
+                <button className="px-3 py-2 bg-utcn-primary text-white rounded-lg text-sm">Sign up</button>
+              </form>
+            </div>
           </div>
 
           <p className="text-center text-xs text-gray-400 mt-8 leading-relaxed">

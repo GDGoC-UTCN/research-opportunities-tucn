@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { MOCK_OPPORTUNITIES, MOCK_APPLICATIONS, Opportunity, User, MOCK_STUDENT, MOCK_PROFESSOR, Application, UploadedFile } from './types';
+import { MOCK_OPPORTUNITIES, MOCK_APPLICATIONS, Opportunity, User, MOCK_STUDENT, MOCK_STUDENT_2, MOCK_PROFESSOR, MOCK_ADMIN, Application, UploadedFile } from './types';
+import AdminDashboard from './components/admin/AdminDashboard';
 
 // Extracted Components
 import LoginView from './components/common/LoginView';
@@ -15,6 +16,7 @@ import ApplicationModal from './components/student/ApplicationModal';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([MOCK_ADMIN, MOCK_STUDENT, MOCK_STUDENT_2, { ...MOCK_PROFESSOR, approved: true }]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES);
   const [applications, setApplications] = useState<Application[]>(MOCK_APPLICATIONS);
   const [view, setView] = useState<'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications'>('login');
@@ -29,9 +31,39 @@ export default function App() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
 
-  const handleLogin = (role: 'student' | 'professor') => {
-    setCurrentUser(role === 'student' ? MOCK_STUDENT : MOCK_PROFESSOR);
-    setView(role === 'professor' ? 'dashboard' : 'list');
+  const handleLogin = (role: 'student' | 'professor' | 'admin') => {
+    // simple demo login: pick first user with the role who is approved (professors need approved=true)
+    const user = users.find(u => u.role === role && (u.role !== 'professor' || u.approved));
+    if (!user) {
+      alert('No account available for this role (or awaiting approval). Create an account or ask admin to approve.');
+      return;
+    }
+    setCurrentUser(user);
+    setView(user.role === 'professor' ? 'dashboard' : user.role === 'admin' ? 'dashboard' : 'list');
+  };
+
+  const handleSignup = (data: { name: string; role: 'student' | 'professor'; department?: string }) => {
+    const id = Date.now().toString();
+    const newUser: User = {
+      id,
+      name: data.name,
+      role: data.role,
+      avatar: `https://picsum.photos/seed/${encodeURIComponent(data.name)}/100/100`,
+      department: data.department,
+      approved: data.role === 'student' ? true : false,
+    };
+    setUsers(prev => [newUser, ...prev]);
+    if (newUser.role === 'student') {
+      setCurrentUser(newUser);
+      setView('list');
+    } else {
+      alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
+    }
+  };
+
+  const approveProfessor = (id: string) => {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, approved: true } : u));
+    alert('Professor approved — they can now log in.');
   };
 
   const handleLogout = () => {
@@ -99,7 +131,7 @@ export default function App() {
   }, [allFilteredOpportunities, currentPage, itemsPerPage]);
 
   if (view === 'login') {
-    return <LoginView handleLogin={handleLogin} />;
+    return <LoginView handleLogin={handleLogin} handleSignup={handleSignup} />;
   }
 
   return (
@@ -145,6 +177,9 @@ export default function App() {
               setApplications={setApplications}
               setView={setView}
             />
+          ) : view === 'dashboard' && currentUser?.role === 'admin' ? (
+            // Admin dashboard for approving professor accounts
+            <AdminDashboard users={users} approveProfessor={approveProfessor} />
           ) : view === 'detail' && selectedOpportunity ? (
             <OpportunityDetail 
               selectedOpportunity={selectedOpportunity}

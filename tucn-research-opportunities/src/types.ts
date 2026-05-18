@@ -29,7 +29,7 @@ export interface Opportunity {
   requireTranscript?: boolean;
 }
 
-export type Role = 'student' | 'professor';
+export type Role = 'student' | 'professor' | 'admin';
 
 export interface User {
   id: string;
@@ -37,6 +37,8 @@ export interface User {
   role: Role;
   avatar: string;
   department?: string;
+  // for professor accounts: whether admin approved this account
+  approved?: boolean;
 }
 
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
@@ -89,6 +91,14 @@ export const MOCK_PROFESSOR: User = {
   role: 'professor',
   department: "Computer Science",
   avatar: "https://picsum.photos/seed/julian/100/100"
+};
+
+export const MOCK_ADMIN: User = {
+  id: 'admin1',
+  name: 'UTCN Admin',
+  role: 'admin',
+  avatar: 'https://picsum.photos/seed/admin/100/100',
+  approved: true,
 };
 
 export const MOCK_OPPORTUNITIES: Opportunity[] = [
