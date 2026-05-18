@@ -28,7 +28,7 @@ services:
     depends_on:
       - api
     # run SQL migration via sqlite3 CLI only (avoid loading node native bindings here)
-    entrypoint: ["/bin/sh", "-c", 'DB_PATH=${DB_PATH:-/data/data.sqlite}; echo "Applying SQL migrations to $DB_PATH"; sqlite3 "$DB_PATH" < /app/migrations/000_init_users.sql || true']
+    entrypoint: ["/bin/sh", "-c", 'DB_PATH=$${DB_PATH:-/data/data.sqlite}; echo "Applying SQL migrations to $DB_PATH"; sqlite3 "$DB_PATH" < /app/migrations/000_init_users.sql || true']
     environment:
       - DB_PATH=/data/data.sqlite
       - ADMIN_PASS=adminpass
