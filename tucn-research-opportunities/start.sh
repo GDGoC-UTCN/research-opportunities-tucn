@@ -1,132 +1,167 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# start.sh - manage Docker deployment for the UTCN Research Portal
-# Usage: ./start.sh [start|stop|update|logs|backup|restore|status]
+# start.sh - convenience script to build, migrate, seed and run the Docker Compose stack
+# Usage: ./start.sh [start|stop|update|logs|backup|restore|status|migrate|seed]
 
 APP_NAME="tucn-research-portal"
-IMAGE_NAME="${APP_NAME}:latest"
-CONTAINER_NAME="${APP_NAME}-ctr"
-VOLUME_NAME="${APP_NAME}-data"
-HOST_PORT=${HOST_PORT:-8080}
+API_VOLUME_NAME="tucn_api_data"
+BACKUP_DIR="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)/docker-backups"
 
 ROOT_DIR="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
+COMPOSE_DIR="$(cd "$ROOT_DIR/.." >/dev/null 2>&1 && pwd)"
+COMPOSE_FILE="$COMPOSE_DIR/docker-compose.yml"
 
-function build_image() {
-  echo "Building Docker image: ${IMAGE_NAME}..."
-  docker build -t "${IMAGE_NAME}" "${ROOT_DIR}"
+function die() { echo "$*" >&2; exit 1; }
+
+function dc_cmd() {
+  # prefer modern `docker compose` if available, fall back to docker-compose
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    docker compose -f "$COMPOSE_FILE" "$@"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    docker-compose -f "$COMPOSE_FILE" "$@"
+  else
+    die "Neither 'docker compose' nor 'docker-compose' is available. Install Docker Compose."
+  fi
 }
 
 function ensure_volume() {
-  if ! docker volume inspect "${VOLUME_NAME}" >/dev/null 2>&1; then
-    echo "Creating named volume ${VOLUME_NAME}..."
-    docker volume create "${VOLUME_NAME}"
-  else
-    echo "Volume ${VOLUME_NAME} already exists"
+  if ! docker volume inspect "$API_VOLUME_NAME" >/dev/null 2>&1; then
+    echo "Creating Docker volume: $API_VOLUME_NAME"
+    docker volume create "$API_VOLUME_NAME"
   fi
 }
 
-function start_container() {
-  build_image
+function start() {
+  echo "Starting stack from $COMPOSE_FILE"
   ensure_volume
+  cd "$COMPOSE_DIR"
 
-  if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    echo "Stopping and removing existing container ${CONTAINER_NAME}..."
-    docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+  echo "Building images... (this may take a while)"
+  dc_cmd build --parallel
+
+  echo "Bringing services up..."
+  dc_cmd up -d --remove-orphans
+
+  echo "Running migrations (if migrations service available)"
+  # run migrations service if present, otherwise attempt to run knex via api service
+  if dc_cmd ps --services | grep -q migrations >/dev/null 2>&1; then
+    dc_cmd run --rm migrations || true
+  else
+    # fallback: run npm migrate inside api service container
+    if dc_cmd ps --services | grep -q api >/dev/null 2>&1; then
+      dc_cmd run --rm api npm run migrate || true
+    fi
   fi
 
-  echo "Starting container ${CONTAINER_NAME} on host port ${HOST_PORT}..."
-  # Mount the named volume to nginx html dir so site files persist across restarts
-  docker run -d \
-    --name "${CONTAINER_NAME}" \
-    --restart unless-stopped \
-    -p "${HOST_PORT}:80" \
-    -v "${VOLUME_NAME}:/usr/share/nginx/html" \
-    "${IMAGE_NAME}"
-
-  echo "Container started. Access the app at http://localhost:${HOST_PORT}/"
-}
-
-function stop_container() {
-  if docker ps -q -f name="^/${CONTAINER_NAME}$" | grep -q .; then
-    echo "Stopping container ${CONTAINER_NAME}..."
-    docker stop "${CONTAINER_NAME}"
+  echo "Seeding admin user (if seed-admin script present)"
+  # try running seed-admin through api service
+  if dc_cmd ps --services | grep -q api >/dev/null 2>&1; then
+    dc_cmd run --rm api npm run seed-admin || true
   fi
-  if docker ps -a -q -f name="^/${CONTAINER_NAME}$" | grep -q .; then
-    echo "Removing container ${CONTAINER_NAME}..."
-    docker rm -f "${CONTAINER_NAME}"
+
+  echo "Stack started. Access frontend at http://localhost:8080/ (unless overridden)"
+}
+
+function stop() {
+  echo "Stopping stack (docker compose down)..."
+  cd "$COMPOSE_DIR"
+  dc_cmd down
+}
+
+function update() {
+  echo "Updating stack images and restarting..."
+  cd "$COMPOSE_DIR"
+  dc_cmd pull || true
+  dc_cmd build --parallel
+  dc_cmd up -d --remove-orphans
+  echo "Update complete."
+}
+
+function logs() {
+  cd "$COMPOSE_DIR"
+  dc_cmd logs -f --tail=200
+}
+
+function migrate() {
+  cd "$COMPOSE_DIR"
+  echo "Running migrations..."
+  if dc_cmd ps --services | grep -q migrations >/dev/null 2>&1; then
+    dc_cmd run --rm migrations
+  else
+    dc_cmd run --rm api npm run migrate
   fi
 }
 
-function update_container() {
-  echo "Updating container with latest image..."
-  build_image
-  stop_container
-  start_container
+function seed() {
+  cd "$COMPOSE_DIR"
+  echo "Seeding admin user..."
+  dc_cmd run --rm api npm run seed-admin
 }
 
-function show_logs() {
-  docker logs -f --tail 200 "${CONTAINER_NAME}"
-}
-
-function backup_volume() {
-  local out_dir="${ROOT_DIR}/docker-backups"
-  mkdir -p "${out_dir}"
-  local ts
+function backup() {
+  mkdir -p "$BACKUP_DIR"
   ts=$(date -u +"%Y%m%dT%H%M%SZ")
-  local archive="${out_dir}/${APP_NAME}-data-${ts}.tar.gz"
-  echo "Backing up volume ${VOLUME_NAME} to ${archive}..."
-  docker run --rm -v "${VOLUME_NAME}:/data:ro" -v "${out_dir}:/backup" alpine sh -c "cd /data && tar czf /backup/$(basename ${archive}) ."
-  echo "Backup completed: ${archive}"
+  archive="$BACKUP_DIR/${APP_NAME}-api-data-${ts}.tar.gz"
+  echo "Backing up volume $API_VOLUME_NAME to $archive"
+  docker run --rm -v "${API_VOLUME_NAME}:/data:ro" -v "$BACKUP_DIR:/backup" alpine sh -c "cd /data && tar czf /backup/$(basename $archive) ."
+  echo "Backup done: $archive"
 }
 
-function restore_volume() {
+function restore() {
   if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 restore <backup-tar.gz>" >&2
-    exit 2
+    die "Usage: $0 restore <backup-tar.gz>"
   fi
-  local archive_path="$1"
-  if [ ! -f "${archive_path}" ]; then
-    echo "Backup file not found: ${archive_path}" >&2
-    exit 1
+  archive_path="$1"
+  if [ ! -f "$archive_path" ]; then
+    die "Backup file not found: $archive_path"
   fi
-  echo "Restoring ${archive_path} into volume ${VOLUME_NAME}..."
-  docker run --rm -v "${VOLUME_NAME}:/data" -v "$(pwd):/backup" alpine sh -c "cd /data && tar xzf /backup/$(basename ${archive_path})"
-  echo "Restore completed."
+  echo "Restoring $archive_path into volume $API_VOLUME_NAME"
+  docker run --rm -v "${API_VOLUME_NAME}:/data" -v "$(cd $(dirname "$archive_path") && pwd):/backup" alpine sh -c "cd /data && tar xzf /backup/$(basename $archive_path)"
+  echo "Restore completed"
 }
 
 function status() {
-  echo "Container: ${CONTAINER_NAME}"
-  docker ps -a --filter name="${CONTAINER_NAME}"
+  cd "$COMPOSE_DIR"
+  echo "Docker Compose file: $COMPOSE_FILE"
+  docker --version || true
+  dc_cmd ps
   echo
-  echo "Volume: ${VOLUME_NAME}"
-  docker volume inspect "${VOLUME_NAME}" || true
+  echo "Volume: $API_VOLUME_NAME"
+  docker volume inspect "$API_VOLUME_NAME" || true
 }
 
 case ${1:-start} in
   start)
-    start_container
+    start
     ;;
   stop)
-    stop_container
+    stop
     ;;
   update)
-    update_container
+    update
     ;;
   logs)
-    show_logs
+    logs
     ;;
   backup)
-    backup_volume
+    backup
     ;;
   restore)
-    restore_volume "$2"
+    restore "$2"
     ;;
   status)
     status
     ;;
+  migrate)
+    migrate
+    ;;
+  seed)
+    seed
+    ;;
   *)
-    echo "Usage: $0 {start|stop|update|logs|backup|restore <file>|status}"
+    echo "Usage: $0 {start|stop|update|logs|backup|restore <file>|status|migrate|seed}"
     exit 1
     ;;
 esac
+

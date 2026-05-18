@@ -23,6 +23,17 @@ services:
       - tucn_api_data:/data
     networks:
       - tucn-net
+  migrations:
+    image: tucn-api:latest
+    depends_on:
+      - api
+    entrypoint: ["/bin/sh", "-c", "npx knex migrate:latest --knexfile /app/knexfile.js"]
+    environment:
+      - DB_PATH=/data/data.sqlite
+    volumes:
+      - tucn_api_data:/data
+    networks:
+      - tucn-net
 
 volumes:
   tucn_api_data:
