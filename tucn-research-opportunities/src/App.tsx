@@ -175,6 +175,45 @@ export default function App() {
     }
   };
 
+  // Admin: fetch all users from server
+  const fetchAllUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const json = await res.json();
+      // server returns numeric ids; normalize to strings for local state
+      const remoteUsers: User[] = (json.users || []).map((u: any) => ({ id: String(u.id), name: u.name, email: u.email, role: u.role, department: u.department, approved: !!u.approved, avatar: `https://picsum.photos/seed/${encodeURIComponent(u.name)}/100/100` }));
+      setUsers(prev => {
+        // merge remote users preferring server data
+        const emails = new Set(remoteUsers.map(r => r.email));
+        const merged = [...remoteUsers, ...prev.filter(p => !emails.has(p.email))];
+        try { localStorage.setItem('tucn_users', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    } catch (err) {
+      console.error('Failed to fetch admin users', err);
+    }
+  };
+
+  const deleteUser = async (key: string) => {
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(key)}`, { method: 'DELETE' });
+      const json = await res.json().catch(()=>({}));
+      if (!res.ok) { alert(json.error || 'Failed to delete'); return; }
+      setUsers(prev => prev.filter(u => u.id !== key && u.email !== key));
+      alert('User deleted');
+    } catch (err) {
+      console.error('Delete user failed', err);
+      alert('Network error deleting user');
+    }
+  };
+
+  const deletePost = (postId: string) => {
+    // remove opportunity locally (no server persistence for opportunities yet)
+    setOpportunities(prev => prev.filter(p => p.id !== postId));
+    alert('Post deleted (local)');
+  };
+
   const handleLogout = () => {
     setCurrentUser(null);
     setShowUserMenu(false);
@@ -311,8 +350,15 @@ export default function App() {
               setView={setView}
             />
           ) : view === 'dashboard' && currentUser?.role === 'admin' ? (
-            // Admin dashboard for approving professor accounts
-            <AdminDashboard users={users} approveProfessor={approveProfessor} />
+            // Admin dashboard for approving professor accounts and managing users/posts
+            <AdminDashboard
+              users={users}
+              opportunities={opportunities}
+              approveProfessor={approveProfessor}
+              fetchAllUsers={fetchAllUsers}
+              deleteUser={deleteUser}
+              deletePost={deletePost}
+            />
           ) : view === 'detail' && selectedOpportunity ? (
             <OpportunityDetail 
               selectedOpportunity={selectedOpportunity}

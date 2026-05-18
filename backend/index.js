@@ -59,6 +59,14 @@ app.get('/admin/pending', (req, res) => {
   });
 });
 
+// Admin: list all users
+app.get('/admin/users', (req, res) => {
+  db.all(`SELECT id,name,email,role,department,approved FROM users ORDER BY role DESC, id ASC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'DB error' });
+    return res.json({ users: rows });
+  });
+});
+
 // Admin: approve professor
 app.post('/admin/approve', (req, res) => {
   const { id, email } = req.body;
@@ -80,6 +88,26 @@ app.post('/admin/approve', (req, res) => {
 
 // Simple healthcheck
 app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Admin: delete user by id or email
+app.delete('/admin/users/:key', (req, res) => {
+  const key = req.params.key;
+  if (!key) return res.status(400).json({ error: 'Missing key' });
+  const asNum = Number(key);
+  if (!Number.isNaN(asNum) && String(asNum) === String(key)) {
+    db.run(`DELETE FROM users WHERE id = ?`, [asNum], function(err) {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
+      return res.json({ ok: true });
+    });
+  } else {
+    db.run(`DELETE FROM users WHERE email = ?`, [key], function(err) {
+      if (err) return res.status(500).json({ error: 'DB error' });
+      if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
+      return res.json({ ok: true });
+    });
+  }
+});
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => console.log(`API listening on port ${port}`));
