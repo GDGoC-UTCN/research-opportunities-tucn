@@ -16,11 +16,13 @@ function FileUploadField({
   hint,
   value,
   onChange,
+  required,
 }: {
   label: string;
   hint: string;
   value: UploadedFile | undefined;
   onChange: (file: UploadedFile | undefined) => void;
+  required?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -64,7 +66,7 @@ function FileUploadField({
   return (
     <div>
       <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-        {label} <span className="text-gray-400 font-normal text-xs">(optional)</span>
+        {label} {required ? <span className="text-red-400 font-normal text-xs">(required)</span> : <span className="text-gray-400 font-normal text-xs">(optional)</span>}
       </label>
       <p className="text-xs text-gray-500 mb-2">{hint}</p>
 
@@ -127,9 +129,19 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
   );
   const [cvFile, setCvFile] = useState<UploadedFile | undefined>();
   const [transcriptFile, setTranscriptFile] = useState<UploadedFile | undefined>();
+  const [formError, setFormError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
+    if (opportunity.requireCv && !cvFile) {
+      setFormError('This opportunity requires a CV. Please upload a PDF.');
+      return;
+    }
+    if (opportunity.requireTranscript && !transcriptFile) {
+      setFormError('This opportunity requires a Transcript of Notes. Please upload a PDF.');
+      return;
+    }
     const result: ApplicationAnswer[] = fields.map(f => ({
       fieldId: f.id,
       question: f.question,
@@ -226,13 +238,16 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
                   hint="Upload your current CV so the professor can learn more about your background."
                   value={cvFile}
                   onChange={setCvFile}
+                  required={!!opportunity.requireCv}
                 />
                 <FileUploadField
                   label="Transcript of Notes"
                   hint="Upload your official academic transcript (grades overview)."
                   value={transcriptFile}
                   onChange={setTranscriptFile}
+                  required={!!opportunity.requireTranscript}
                 />
+                {formError && <p className="text-sm text-red-500 mt-1">{formError}</p>}
               </div>
             </div>
 

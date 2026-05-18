@@ -13,6 +13,8 @@ interface Props {
 export default function CreateOpportunity({ currentUser, opportunities, setOpportunities, setView }: Props) {
   const [newOppFields, setNewOppFields] = useState<ApplicationField[]>([]);
   const [newFieldQuestion, setNewFieldQuestion] = useState('');
+  const [requireCv, setRequireCv] = useState(false);
+  const [requireTranscript, setRequireTranscript] = useState(false);
 
   const addField = () => {
     if (newFieldQuestion.trim() && newOppFields.length < 20) {
@@ -36,6 +38,8 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
       tags:        ['NEW', 'RESEARCH'],
       requirements: { technical: ['To be specified'], eligibility: ['To be specified'] },
       applicationFields: newOppFields,
+  requireCv,
+  requireTranscript,
       author: {
         id:         currentUser.id,
         name:       currentUser.name,
@@ -152,6 +156,22 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
               >
                 Add
               </button>
+            </div>
+          </div>
+
+          {/* Document requirements */}
+          <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
+            <p className="text-sm font-semibold text-gray-700">Application Documents</p>
+            <p className="text-xs text-gray-400">Require these documents from applicants?</p>
+            <div className="flex gap-4 items-center">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={requireCv} onChange={e => setRequireCv(e.target.checked)} className="form-checkbox h-4 w-4 text-utcn-primary" />
+                <span>Require CV / Résumé</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={requireTranscript} onChange={e => setRequireTranscript(e.target.checked)} className="form-checkbox h-4 w-4 text-utcn-primary" />
+                <span>Require Transcript of Notes</span>
+              </label>
             </div>
           </div>
 

@@ -24,6 +24,9 @@ export interface Opportunity {
     eligibility: string[];
   };
   applicationFields?: ApplicationField[];
+  // whether the professor requires CV / transcript when students apply
+  requireCv?: boolean;
+  requireTranscript?: boolean;
 }
 
 export type Role = 'student' | 'professor';
