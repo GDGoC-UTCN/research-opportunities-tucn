@@ -1,12 +1,122 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Send } from 'lucide-react';
-import React, { useState } from 'react';
-import { Opportunity, ApplicationAnswer } from '../../types';
+import { X, Send, Upload, FileText, Trash2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Opportunity, ApplicationAnswer, UploadedFile } from '../../types';
 
 interface Props {
   opportunity: Opportunity;
-  onSubmit: (message: string, answers: ApplicationAnswer[]) => void;
+  onSubmit: (message: string, answers: ApplicationAnswer[], cvFile?: UploadedFile, transcriptFile?: UploadedFile) => void;
   onClose: () => void;
+}
+
+const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+
+function FileUploadField({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: UploadedFile | undefined;
+  onChange: (file: UploadedFile | undefined) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState('');
+
+  const processFile = (file: File) => {
+    setError('');
+    if (file.type !== 'application/pdf') {
+      setError('Only PDF files are accepted.');
+      return;
+    }
+    if (file.size > MAX_SIZE) {
+      setError('File must be smaller than 5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      onChange({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        dataUrl: reader.result as string,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+        {label} <span className="text-gray-400 font-normal text-xs">(optional)</span>
+      </label>
+      <p className="text-xs text-gray-500 mb-2">{hint}</p>
+
+      {value ? (
+        <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+          <FileText size={20} className="text-utcn-primary flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-800 truncate">{value.name}</p>
+            <p className="text-xs text-gray-500">{formatSize(value.size)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { onChange(undefined); setError(''); }}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
+      ) : (
+        <div
+          onClick={() => inputRef.current?.click()}
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-5 px-4 cursor-pointer transition-colors ${
+            dragOver
+              ? 'border-utcn-primary bg-blue-50'
+              : 'border-gray-200 hover:border-utcn-primary hover:bg-blue-50/50'
+          }`}
+        >
+          <Upload size={20} className={dragOver ? 'text-utcn-primary' : 'text-gray-400'} />
+          <p className="text-sm text-gray-500">
+            <span className="font-semibold text-utcn-primary">Click to upload</span> or drag & drop
+          </p>
+          <p className="text-xs text-gray-400">PDF only · max 5 MB</p>
+        </div>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        className="hidden"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) processFile(file);
+          e.target.value = '';
+        }}
+      />
+      {error && <p className="text-xs text-red-500 mt-1.5">{error}</p>}
+    </div>
+  );
 }
 
 export default function ApplicationModal({ opportunity, onSubmit, onClose }: Props) {
@@ -15,18 +125,21 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
   const [answers, setAnswers] = useState<Record<string, string>>(
     Object.fromEntries(fields.map(f => [f.id, '']))
   );
+  const [cvFile, setCvFile] = useState<UploadedFile | undefined>();
+  const [transcriptFile, setTranscriptFile] = useState<UploadedFile | undefined>();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const result: ApplicationAnswer[] = fields.map(f => ({
-      fieldId:  f.id,
+      fieldId: f.id,
       question: f.question,
-      answer:   answers[f.id] ?? '',
+      answer: answers[f.id] ?? '',
     }));
-    onSubmit(message, result);
+    onSubmit(message, result, cvFile, transcriptFile);
   };
 
-  const textareaClass = 'w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-utcn-primary focus:border-transparent resize-none outline-none transition bg-white placeholder:text-gray-300';
+  const textareaClass =
+    'w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-utcn-primary focus:border-transparent resize-none outline-none transition bg-white placeholder:text-gray-300';
 
   return (
     <AnimatePresence>
@@ -64,6 +177,7 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
             <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
+              {/* Custom fields */}
               {fields.length === 0 ? (
                 <p className="text-sm text-gray-400 italic bg-slate-50 rounded-xl p-4 text-center">
                   No specific questions — just write a message below and submit!
@@ -87,6 +201,7 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
                 ))
               )}
 
+              {/* Cover message */}
               <div className={fields.length > 0 ? 'pt-4 border-t border-gray-100' : ''}>
                 <label className="block text-sm font-semibold text-gray-800 mb-1.5">
                   Cover Message <span className="text-red-400 font-normal">*</span>
@@ -98,6 +213,25 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
                   onChange={e => setMessage(e.target.value)}
                   placeholder="Introduce yourself and explain why you're a great fit for this project…"
                   className={textareaClass}
+                />
+              </div>
+
+              {/* File uploads */}
+              <div className="pt-4 border-t border-gray-100 space-y-5">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  Supporting Documents
+                </p>
+                <FileUploadField
+                  label="CV / Résumé"
+                  hint="Upload your current CV so the professor can learn more about your background."
+                  value={cvFile}
+                  onChange={setCvFile}
+                />
+                <FileUploadField
+                  label="Transcript of Notes"
+                  hint="Upload your official academic transcript (grades overview)."
+                  value={transcriptFile}
+                  onChange={setTranscriptFile}
                 />
               </div>
             </div>
@@ -124,10 +258,4 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
       </motion.div>
     </AnimatePresence>
   );
-}
-
-interface Props {
-  opportunity: Opportunity;
-  onSubmit: (message: string, answers: ApplicationAnswer[]) => void;
-  onClose: () => void;
 }

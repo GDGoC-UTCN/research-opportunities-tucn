@@ -44,6 +44,13 @@ export interface ApplicationAnswer {
   answer: string;
 }
 
+export interface UploadedFile {
+  name: string;
+  size: number;       // bytes
+  type: string;       // MIME
+  dataUrl: string;    // base64 data URL for in-memory preview / download
+}
+
 export interface Application {
   id: string;
   opportunityId: string;
@@ -53,6 +60,8 @@ export interface Application {
   date: string;
   status: ApplicationStatus;
   answers?: ApplicationAnswer[];
+  cvFile?: UploadedFile;
+  transcriptFile?: UploadedFile;
   professorReply?: string;
   replyDate?: string;
 }

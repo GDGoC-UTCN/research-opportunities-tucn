@@ -129,6 +129,36 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                                     </div>
                                   )}
 
+                                  {(app.cvFile || app.transcriptFile) && (
+                                    <div className="pt-3 border-t border-gray-200">
+                                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Documents</p>
+                                      <div className="space-y-2">
+                                        {app.cvFile && (
+                                          <a
+                                            href={app.cvFile.dataUrl}
+                                            download={app.cvFile.name}
+                                            className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-utcn-primary hover:bg-blue-100 transition-colors"
+                                          >
+                                            <FileText size={14} className="flex-shrink-0" />
+                                            <span className="font-semibold">CV</span>
+                                            <span className="truncate text-gray-600">{app.cvFile.name}</span>
+                                          </a>
+                                        )}
+                                        {app.transcriptFile && (
+                                          <a
+                                            href={app.transcriptFile.dataUrl}
+                                            download={app.transcriptFile.name}
+                                            className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-utcn-primary hover:bg-blue-100 transition-colors"
+                                          >
+                                            <FileText size={14} className="flex-shrink-0" />
+                                            <span className="font-semibold">Transcript</span>
+                                            <span className="truncate text-gray-600">{app.transcriptFile.name}</span>
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {app.status === 'pending' && (
                                     <div className="pt-3 border-t border-gray-200">
                                       <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2">Professor Decision</p>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { CheckCircle2, Clock, XCircle, BookOpen } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle, BookOpen, FileText } from 'lucide-react';
 import { Opportunity, Application, User } from '../../types';
 
 interface Props {
@@ -94,6 +94,33 @@ export default function StudentApplications({ currentUser, opportunities, applic
                           <p className="text-xs text-gray-500 mt-0.5">{ans.answer}</p>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Uploaded documents */}
+                  {(app.cvFile || app.transcriptFile) && (
+                    <div className="flex flex-wrap gap-2 pt-4 border-t border-dashed border-gray-100">
+                      <p className="w-full text-[10px] font-bold uppercase tracking-widest text-gray-400">Uploaded Documents</p>
+                      {app.cvFile && (
+                        <a
+                          href={app.cvFile.dataUrl}
+                          download={app.cvFile.name}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
+                        >
+                          <FileText size={12} />
+                          CV — {app.cvFile.name}
+                        </a>
+                      )}
+                      {app.transcriptFile && (
+                        <a
+                          href={app.transcriptFile.dataUrl}
+                          download={app.transcriptFile.name}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
+                        >
+                          <FileText size={12} />
+                          Transcript — {app.transcriptFile.name}
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>

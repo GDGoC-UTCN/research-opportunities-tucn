@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { MOCK_OPPORTUNITIES, MOCK_APPLICATIONS, Opportunity, User, MOCK_STUDENT, MOCK_PROFESSOR, Application } from './types';
+import { MOCK_OPPORTUNITIES, MOCK_APPLICATIONS, Opportunity, User, MOCK_STUDENT, MOCK_PROFESSOR, Application, UploadedFile } from './types';
 
 // Extracted Components
 import LoginView from './components/common/LoginView';
@@ -171,7 +171,7 @@ export default function App() {
       {applyModalOpen && selectedOpportunity && currentUser && (
         <ApplicationModal
           opportunity={selectedOpportunity}
-          onSubmit={(message, answers) => {
+          onSubmit={(message, answers, cvFile, transcriptFile) => {
             const newApp: Application = {
               id: Date.now().toString(),
               opportunityId: selectedOpportunity.id,
@@ -180,7 +180,9 @@ export default function App() {
               message: message,
               date: new Date().toLocaleDateString(),
               status: 'pending',
-              answers
+              answers,
+              cvFile,
+              transcriptFile,
             };
             setApplications([...applications, newApp]);
             setApplyModalOpen(false);
