@@ -15,12 +15,47 @@ import TeacherDashboard from './components/teacher/TeacherDashboard';
 import StudentApplications from './components/student/StudentApplications';
 import ApplicationModal from './components/student/ApplicationModal';
 
+type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications';
+
+function loadSession(): { user: User; view: View } | null {
+  try {
+    const raw = localStorage.getItem('tucn_session');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.user?.id) return parsed;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function savedOpportunities(): Opportunity[] | null {
+  try {
+    const raw = localStorage.getItem('tucn_opportunities');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch { /* ignore */ }
+  return null;
+}
+
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const initialSession = loadSession();
+
+  // Redirect URL on mount: if no session and not already on /login, push /login
+  // If session exists and URL is /login, push back to /
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (!initialSession && path !== '/login' && path !== '/admin') {
+      window.history.replaceState({}, '', '/login');
+    } else if (initialSession && path === '/login') {
+      window.history.replaceState({}, '', '/');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [currentUser, setCurrentUser] = useState<User | null>(initialSession?.user ?? null);
   const [users, setUsers] = useState<User[]>([MOCK_ADMIN, MOCK_STUDENT, MOCK_STUDENT_2, { ...MOCK_PROFESSOR, approved: true }]);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>(savedOpportunities() ?? MOCK_OPPORTUNITIES);
   const [applications, setApplications] = useState<Application[]>(MOCK_APPLICATIONS);
-  const [view, setView] = useState<'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications'>('login');
+  const [view, setView] = useState<View>(initialSession?.view ?? 'login');
   
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,7 +75,10 @@ export default function App() {
       return;
     }
     setCurrentUser(user);
-    setView(user.role === 'professor' ? 'dashboard' : user.role === 'admin' ? 'dashboard' : 'list');
+    const nextView: View = user.role === 'professor' ? 'dashboard' : user.role === 'admin' ? 'dashboard' : 'list';
+    setView(nextView);
+    try { localStorage.setItem('tucn_session', JSON.stringify({ user, view: nextView })); } catch { /* ignore */ }
+    window.history.pushState({}, '', '/');
   };
 
   const handleSignup = (data: { name: string; role: 'student' | 'professor' | 'admin'; department?: string; email?: string; password?: string }) => {
@@ -74,6 +112,8 @@ export default function App() {
         if (newUser.role === 'student') {
           setCurrentUser(newUser);
           setView('list');
+          try { localStorage.setItem('tucn_session', JSON.stringify({ user: newUser, view: 'list' })); } catch { /* ignore */ }
+          window.history.pushState({}, '', '/');
         } else if (newUser.role === 'professor') {
           alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
         } else if (newUser.role === 'admin') {
@@ -129,7 +169,10 @@ export default function App() {
         return merged;
       });
       setCurrentUser(cur);
-      setView(cur.role === 'professor' ? 'dashboard' : cur.role === 'admin' ? 'dashboard' : 'list');
+      const nextView: View = cur.role === 'professor' ? 'dashboard' : cur.role === 'admin' ? 'dashboard' : 'list';
+      setView(nextView);
+      try { localStorage.setItem('tucn_session', JSON.stringify({ user: cur, view: nextView })); } catch { /* ignore */ }
+      window.history.pushState({}, '', '/');
       return cur;
     } catch (err) {
       console.error('Login failed:', err);
@@ -225,6 +268,8 @@ export default function App() {
     setCurrentUser(null);
     setShowUserMenu(false);
     setView('login');
+    try { localStorage.removeItem('tucn_session'); } catch { /* ignore */ }
+    window.history.pushState({}, '', '/login');
   };
 
   const loadPostings = async () => {
@@ -260,6 +305,20 @@ export default function App() {
       // ignore
     }
   }, [users]);
+
+  // persist opportunities so professor-added posts survive a reload
+  useEffect(() => {
+    try {
+      localStorage.setItem('tucn_opportunities', JSON.stringify(opportunities));
+    } catch { /* ignore */ }
+  }, [opportunities]);
+
+  // keep the stored session view in sync whenever view changes (and user is logged in)
+  useEffect(() => {
+    if (currentUser) {
+      try { localStorage.setItem('tucn_session', JSON.stringify({ user: currentUser, view })); } catch { /* ignore */ }
+    }
+  }, [view, currentUser]);
 
   useEffect(() => {
     setCurrentPage(1);
