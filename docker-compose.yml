@@ -27,8 +27,8 @@ services:
     image: tucn-api:latest
     depends_on:
       - api
-    # run migrations then seeds (idempotent)
-    entrypoint: ["/bin/sh", "-c", "sqlite3 \"$$DB_PATH\" < /app/migrations/000_init_users.sql || true && node /app/migrate.js || true && npx knex migrate:latest --knexfile /app/knexfile.js || true && npx knex seed:run --knexfile /app/knexfile.js || true"]
+    # run SQL migration via sqlite3 CLI only (avoid loading node native bindings here)
+    entrypoint: ["/bin/sh", "-c", 'DB_PATH=${DB_PATH:-/data/data.sqlite}; echo "Applying SQL migrations to $DB_PATH"; sqlite3 "$DB_PATH" < /app/migrations/000_init_users.sql || true']
     environment:
       - DB_PATH=/data/data.sqlite
       - ADMIN_PASS=adminpass
