@@ -28,7 +28,7 @@ services:
     depends_on:
       - api
     # run migrations then seeds (idempotent)
-    entrypoint: ["/bin/sh", "-c", "npx knex migrate:latest --knexfile /app/knexfile.js && npx knex seed:run --knexfile /app/knexfile.js"]
+    entrypoint: ["/bin/sh", "-c", "node /app/migrate.js || true && npx knex migrate:latest --knexfile /app/knexfile.js || true && npx knex seed:run --knexfile /app/knexfile.js || true"]
     environment:
       - DB_PATH=/data/data.sqlite
       - ADMIN_PASS=adminpass
