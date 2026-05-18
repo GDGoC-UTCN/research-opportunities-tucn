@@ -27,9 +27,14 @@ services:
     image: tucn-api:latest
     depends_on:
       - api
-    entrypoint: ["/bin/sh", "-c", "npx knex migrate:latest --knexfile /app/knexfile.js"]
+    # run migrations then seeds (idempotent)
+    entrypoint: ["/bin/sh", "-c", "npx knex migrate:latest --knexfile /app/knexfile.js && npx knex seed:run --knexfile /app/knexfile.js"]
     environment:
       - DB_PATH=/data/data.sqlite
+      - ADMIN_PASS=adminpass
+      - ALEX_PASS=studentpass
+      - MARIA_PASS=studentpass2
+      - PROF_PASS=profpass
     volumes:
       - tucn_api_data:/data
     networks:
