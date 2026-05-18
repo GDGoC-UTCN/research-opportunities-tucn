@@ -1,0 +1,19 @@
+{
+  "name": "tucn-backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "migrate": "knex migrate:latest --knexfile knexfile.js",
+    "seed-admin": "knex seed:run --knexfile knexfile.js --specific=01_admin_seed.js || node seed-admin.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "knex": "^2.5.1"
+  }
+}

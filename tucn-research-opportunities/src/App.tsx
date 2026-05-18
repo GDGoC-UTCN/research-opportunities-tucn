@@ -1,49 +1,64 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  Search, 
-  Filter, 
-  ChevronDown, 
-  ChevronLeft, 
-  ChevronRight, 
-  School, 
-  Menu, 
-  ArrowLeft, 
-  CheckCircle2, 
-  Bookmark, 
-  Share2, 
-  Download,
-  Calendar as CalendarIcon,
-  Clock,
-  DollarSign,
-  X,
-  Loader2,
-  User as UserIcon,
-  LogOut,
-  Settings,
-  Plus,
-  Users
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_OPPORTUNITIES, Opportunity, User, MOCK_STUDENT, MOCK_PROFESSOR, Application } from './types';
-import OpportunityCard from './components/OpportunityCard';
+import bcrypt from 'bcryptjs';
+import { AnimatePresence } from 'motion/react';
+import { MOCK_OPPORTUNITIES, MOCK_APPLICATIONS, Opportunity, User, MOCK_STUDENT, MOCK_STUDENT_2, MOCK_PROFESSOR, MOCK_ADMIN, Application, UploadedFile } from './types';
+import AdminDashboard from './components/admin/AdminDashboard';
 
-// Replaceable Logo Component
-const Logo = () => (
-  <div className="w-10 h-10 flex items-center justify-center bg-white rounded flex-shrink-0">
-    <img src="/favicon.svg" alt="UTCN Logo" className="h-8 w-8 object-contain" />
-  </div>
-);
+// Extracted Components
+import LoginView from './components/common/LoginView';
+import Header from './components/common/Header';
+import Footer from './components/common/Footer';
+import OpportunityList from './components/common/OpportunityList';
+import OpportunityDetail from './components/common/OpportunityDetail';
+import CreateOpportunity from './components/teacher/CreateOpportunity';
+import TeacherDashboard from './components/teacher/TeacherDashboard';
+import StudentApplications from './components/student/StudentApplications';
+import ApplicationModal from './components/student/ApplicationModal';
+
+type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications';
+
+function loadSession(): { user: User; view: View } | null {
+  try {
+    const raw = localStorage.getItem('tucn_session');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.user?.id) return parsed;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function savedOpportunities(): Opportunity[] | null {
+  try {
+    const raw = localStorage.getItem('tucn_opportunities');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch { /* ignore */ }
+  return null;
+}
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES);
+  // loadSession() is called once outside render cycle — safe because it's a module-level function
+  const initialSession = loadSession();
+  // 'detail' requires selectedOpportunity state which can't be restored from localStorage — fall back to safe view
+  const safeInitialView: View = (initialSession?.view === 'detail' || !initialSession) ? (initialSession?.user?.role === 'professor' || initialSession?.user?.role === 'admin' ? 'dashboard' : 'list') : initialSession.view;
+
+  // Redirect URL on mount: if no session and not already on /login, push /login
+  // If session exists and URL is /login, push back to /
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (!initialSession && path !== '/login' && path !== '/admin') {
+      window.history.replaceState({}, '', '/login');
+    } else if (initialSession && path === '/login') {
+      window.history.replaceState({}, '', '/');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [currentUser, setCurrentUser] = useState<User | null>(initialSession?.user ?? null);
+  const [users, setUsers] = useState<User[]>([MOCK_ADMIN, MOCK_STUDENT, MOCK_STUDENT_2, { ...MOCK_PROFESSOR, approved: true }]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>(savedOpportunities() ?? MOCK_OPPORTUNITIES);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [view, setView] = useState<'login' | 'list' | 'detail' | 'create' | 'dashboard'>('login');
+  const [view, setView] = useState<View>(initialSession ? safeInitialView : 'login');
   
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,31 +68,309 @@ export default function App() {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
 
-  const handleLogin = (role: 'student' | 'professor') => {
-    setCurrentUser(role === 'student' ? MOCK_STUDENT : MOCK_PROFESSOR);
-    setView('list');
+  const handleLogin = (role: 'student' | 'professor' | 'admin') => {
+    // simple demo login: pick first user with the role who is approved (professors need approved=true)
+    const user = users.find(u => u.role === role && (u.role !== 'professor' || u.approved));
+    if (!user) {
+      alert('No account available for this role (or awaiting approval). Create an account or ask admin to approve.');
+      return;
+    }
+    setCurrentUser(user);
+    const nextView: View = user.role === 'professor' ? 'dashboard' : user.role === 'admin' ? 'dashboard' : 'list';
+    setView(nextView);
+    try { localStorage.setItem('tucn_session', JSON.stringify({ user, view: nextView })); } catch { /* ignore */ }
+    window.history.pushState({}, '', '/');
+  };
+
+  const handleSignup = (data: { name: string; role: 'student' | 'professor' | 'admin'; department?: string; email?: string; password?: string }) => {
+    // Call backend API to create the user
+    (async () => {
+      try {
+        const res = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: data.name, email: data.email, password: data.password, role: data.role, department: data.department }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          alert(json.error || 'Signup failed');
+          return;
+        }
+        // backend returns created user info (id may be numeric)
+        const created = json;
+        const newUser: User = {
+          id: String(created.id),
+          name: created.name,
+          role: created.role || data.role,
+          avatar: `https://picsum.photos/seed/${encodeURIComponent(created.name)}/100/100`,
+          department: created.department,
+          approved: created.approved === 1 || created.approved === true,
+          email: created.email,
+        };
+        const updated = [newUser, ...users.filter(u => u.email !== newUser.email)];
+        setUsers(updated);
+        try { localStorage.setItem('tucn_users', JSON.stringify(updated)); } catch (e) { /* ignore */ }
+        if (newUser.role === 'student') {
+          setCurrentUser(newUser);
+          setView('list');
+          try { localStorage.setItem('tucn_session', JSON.stringify({ user: newUser, view: 'list' })); } catch { /* ignore */ }
+          window.history.pushState({}, '', '/');
+        } else if (newUser.role === 'professor') {
+          alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
+        } else if (newUser.role === 'admin') {
+          setCurrentUser(newUser);
+          setView('dashboard');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Signup failed — check console for details');
+      }
+    })();
+  };
+
+  // Email/password login handler (called from LoginView via a small global hook)
+  const handleLoginEmail = async (email: string, password: string, role: 'student' | 'professor' | 'admin') => {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      let bodyText = '';
+      let json: any = null;
+      try { bodyText = await res.text(); json = JSON.parse(bodyText); } catch (e) { bodyText = bodyText || String(e); }
+      if (!res.ok) {
+        const err = new Error(json?.error || `Login failed (${res.status})`);
+        // attach extra details
+        (err as any).status = res.status;
+        (err as any).body = json || bodyText;
+        console.error('Login error details:', { status: res.status, body: json || bodyText });
+        throw err;
+      }
+      const user = json.user || json;
+      if (user.role !== role) {
+        const err = new Error('Logged in user role mismatch');
+        (err as any).status = 200;
+        (err as any).body = user;
+        console.error('Role mismatch on login:', user);
+        throw err;
+      }
+      const cur: User = {
+        id: String(user.id),
+        name: user.name,
+        role: user.role,
+        avatar: `https://picsum.photos/seed/${encodeURIComponent(user.name)}/100/100`,
+        department: user.department,
+        approved: user.approved === 1 || user.approved === true,
+        email: user.email,
+      };
+      setUsers(prev => {
+        const merged = [cur, ...prev.filter(u => u.email !== cur.email)];
+        try { localStorage.setItem('tucn_users', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+      setCurrentUser(cur);
+      const nextView: View = cur.role === 'professor' ? 'dashboard' : cur.role === 'admin' ? 'dashboard' : 'list';
+      setView(nextView);
+      try { localStorage.setItem('tucn_session', JSON.stringify({ user: cur, view: nextView })); } catch { /* ignore */ }
+      window.history.pushState({}, '', '/');
+      loadApplications(cur).catch(() => {});
+      return cur;
+    } catch (err) {
+      console.error('Login failed:', err);
+      // propagate structured error so UI can display details
+      const data = {
+        message: err.message || 'Login failed',
+        status: (err as any).status || null,
+        body: (err as any).body || null,
+      };
+      throw data;
+    }
+  };
+
+  // expose small global function for the simple login form in LoginView
+  (window as any).__handleLoginEmail = handleLoginEmail;
+
+  // When an admin logs in, fetch the full user list so the AdminDashboard is populated
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      fetchAllUsers().catch(() => {});
+    }
+  }, [currentUser]);
+
+  const approveProfessor = async (id: string) => {
+    try {
+      // ask backend to approve the professor so approval is persisted
+      // if id is numeric string, send as number; otherwise include the user's email so backend can match
+      const user = users.find(u => u.id === id);
+      const payload: any = {};
+      const asNum = Number(id);
+      if (!Number.isNaN(asNum) && String(asNum) === String(id)) payload.id = asNum; else if (user && user.email) payload.email = user.email; else payload.id = id;
+      const res = await fetch('/api/admin/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.error('Failed to approve on server', res.status, json);
+        alert(json.error || 'Failed to approve professor on server');
+        return;
+      }
+      // update local state after successful server approval
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, approved: true } : u));
+      try { localStorage.setItem('tucn_users', JSON.stringify(users.map(u => u.id === id ? { ...u, approved: true } : u))); } catch (e) { /* ignore */ }
+      alert('Professor approved — they can now log in.');
+    } catch (err) {
+      console.error('Error approving professor', err);
+      alert('Network error while approving — try again');
+    }
+  };
+
+  // Admin: fetch all users from server
+  const fetchAllUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const json = await res.json();
+      // server returns numeric ids; normalize to strings for local state
+      const remoteUsers: User[] = (json.users || []).map((u: any) => ({ id: String(u.id), name: u.name, email: u.email, role: u.role, department: u.department, approved: !!u.approved, avatar: `https://picsum.photos/seed/${encodeURIComponent(u.name)}/100/100` }));
+      setUsers(prev => {
+        // merge remote users preferring server data
+        const emails = new Set(remoteUsers.map(r => r.email));
+        const merged = [...remoteUsers, ...prev.filter(p => !emails.has(p.email))];
+        try { localStorage.setItem('tucn_users', JSON.stringify(merged)); } catch (e) {}
+        return merged;
+      });
+    } catch (err) {
+      console.error('Failed to fetch admin users', err);
+    }
+  };
+
+  const deleteUser = async (key: string) => {
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(key)}`, { method: 'DELETE' });
+      const json = await res.json().catch(()=>({}));
+      if (!res.ok) { alert(json.error || 'Failed to delete'); return; }
+      setUsers(prev => prev.filter(u => u.id !== key && u.email !== key));
+      alert('User deleted');
+    } catch (err) {
+      console.error('Delete user failed', err);
+      alert('Network error deleting user');
+    }
+  };
+
+  const deletePost = async (postId: string) => {
+    try {
+      await fetch(`/api/opportunities/${encodeURIComponent(postId)}`, { method: 'DELETE' });
+    } catch { /* ignore network error */ }
+    setOpportunities(prev => prev.filter(p => p.id !== postId));
+  };
+
+  const updateApplicationStatus = async (
+    appId: string,
+    status: 'accepted' | 'rejected',
+    professorReply: string,
+  ) => {
+    const replyDate = new Date().toLocaleDateString();
+    try {
+      await fetch(`/api/applications/${encodeURIComponent(appId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, professorReply, replyDate }),
+      });
+    } catch { /* ignore */ }
+    setApplications(prev =>
+      prev.map(a => a.id === appId ? { ...a, status, professorReply, replyDate } : a)
+    );
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setShowUserMenu(false);
     setView('login');
+    try { localStorage.removeItem('tucn_session'); } catch { /* ignore */ }
+    window.history.pushState({}, '', '/login');
   };
 
-  // Simulate loading postings
   const loadPostings = async () => {
     setIsLoading(true);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+      const res = await fetch('/api/opportunities');
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.opportunities) && json.opportunities.length > 0) {
+          setOpportunities(json.opportunities);
+          try { localStorage.setItem('tucn_opportunities', JSON.stringify(json.opportunities)); } catch { /* ignore */ }
+        }
+      }
+    } catch { /* server unreachable — keep localStorage / mock data */ }
     setIsLoading(false);
+  };
+
+  const loadApplications = async (forUser?: typeof currentUser) => {
+    const user = forUser ?? currentUser;
+    if (!user) return;
+    try {
+      const param = user.role === 'student' ? `?studentId=${encodeURIComponent(user.id)}` : '';
+      const res = await fetch(`/api/applications${param}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.applications)) {
+          setApplications(json.applications);
+        }
+      }
+    } catch { /* ignore */ }
   };
 
   useEffect(() => {
     loadPostings();
   }, []);
 
-  // Reset to first page when filters change
+  useEffect(() => {
+    if (currentUser) loadApplications(currentUser);
+  }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // load users from localStorage (if present)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('tucn_users');
+      if (raw) {
+        const parsed = JSON.parse(raw) as User[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setUsers(parsed);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  // persist users whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('tucn_users', JSON.stringify(users));
+    } catch (e) {
+      // ignore
+    }
+  }, [users]);
+
+  // persist opportunities so professor-added posts survive a reload
+  useEffect(() => {
+    try {
+      localStorage.setItem('tucn_opportunities', JSON.stringify(opportunities));
+    } catch { /* ignore */ }
+  }, [opportunities]);
+
+  // keep the stored session view in sync whenever view changes (and user is logged in)
+  useEffect(() => {
+    if (currentUser) {
+      try { localStorage.setItem('tucn_session', JSON.stringify({ user: currentUser, view })); } catch { /* ignore */ }
+    }
+  }, [view, currentUser]);
+
   useEffect(() => {
     setCurrentPage(1);
     loadPostings();
@@ -115,7 +408,6 @@ export default function App() {
         opp.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
       
       const matchesTags = activeTags.length === 0 || activeTags.every(tag => opp.tags.includes(tag));
-      
       return matchesSearch && matchesTags;
     });
   }, [searchQuery, activeTags, opportunities]);
@@ -128,482 +420,127 @@ export default function App() {
   }, [allFilteredOpportunities, currentPage, itemsPerPage]);
 
   if (view === 'login') {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-8 text-center">
-          <Logo />
-          <h1 className="text-2xl font-bold mt-6 mb-2">Welcome to UTCN Research</h1>
-          <p className="text-gray-500 mb-8">Please login to continue</p>
-          <div className="space-y-4">
-            <button 
-              onClick={() => handleLogin('student')}
-              className="w-full py-3 px-4 bg-utcn-blue text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-            >
-              Continue as Student
-            </button>
-            <button 
-              onClick={() => handleLogin('professor')}
-              className="w-full py-3 px-4 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-900 transition"
-            >
-              Continue as Professor
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoginView handleLogin={handleLogin} handleSignup={handleSignup} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800">
-      {/* Header */}
-      <div className="bg-utcn-blue text-white shadow-md">
-        <header className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-4 cursor-pointer" onClick={() => setView('list')}>
-              <Logo />
-              <h1 className="text-2xl font-bold tracking-tight">Research Opportunities</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center space-x-2 focus:outline-none p-2 rounded-full hover:bg-white/10">
-                  {currentUser ? (
-                    <img src={currentUser.avatar} alt="Avatar" className="w-8 h-8 rounded-full border border-white" />
-                  ) : (
-                    <UserIcon className="w-6 h-6" />
-                  )}
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {showUserMenu && currentUser && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 text-gray-800"
-                    >
-                      <div className="px-4 py-3 border-b text-sm">
-                        <div className="font-bold">{currentUser.name}</div>
-                        <div className="text-gray-500 capitalize text-xs mt-1">{currentUser.role}</div>
-                      </div>
-                      {currentUser.role === 'professor' && (
-                        <>
-                          <button onClick={() => { setView('create'); setShowUserMenu(false); }} className="w-full text-left flex items-center px-4 py-2 text-sm hover:bg-gray-100">
-                            <Plus className="w-4 h-4 mr-2" />
-                            Post Opportunity
-                          </button>
-                          <button onClick={() => { setView('dashboard'); setShowUserMenu(false); }} className="w-full text-left flex items-center px-4 py-2 text-sm hover:bg-gray-100">
-                            <Users className="w-4 h-4 mr-2" />
-                            My Projects & Applicants
-                          </button>
-                        </>
-                      )}
-                      <button onClick={handleLogout} className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Logout
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-        </header>
-      </div>
+    <div className="min-h-screen flex flex-col bg-gray-100 text-gray-800">
+      <Header 
+        currentUser={currentUser} 
+        setView={setView} 
+        showUserMenu={showUserMenu} 
+        setShowUserMenu={setShowUserMenu} 
+        handleLogout={handleLogout} 
+      />
 
       <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
         <AnimatePresence mode="wait">
           {view === 'list' ? (
-            <motion.div
-              key="list"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Search and Filter Section */}
-              <section className="mb-8 bg-white p-6 rounded-lg shadow">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="relative md:col-span-2">
-                    <input
-                      type="text"
-                      placeholder="Search by title, description, or tags..."
-                      className="w-full h-12 pl-12 pr-4 bg-gray-100 rounded-lg border-transparent focus:ring-2 focus:ring-utcn-blue focus:border-transparent"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                  </div>
-                  <div className="relative">
-                    <button 
-                      onClick={() => setShowFilterMenu(!showFilterMenu)}
-                      className="w-full h-12 px-4 rounded-lg flex items-center justify-between bg-gray-100 hover:bg-gray-200 transition-colors"
-                    >
-                      <span className="font-medium">Filter by Tags</span>
-                      <Filter size={20} className="text-gray-500" />
-                    </button>
-                    <AnimatePresence>
-                      {showFilterMenu && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 10 }}
-                          className="absolute top-full right-0 mt-2 w-full md:w-72 bg-white rounded-lg shadow-xl p-4 z-30 border"
-                        >
-                          <div className="flex justify-between items-center mb-3">
-                            <h3 className="font-semibold text-sm">Filter by Tags</h3>
-                            <button onClick={() => setShowFilterMenu(false)}>
-                              <X size={18} className="text-gray-500 hover:text-gray-800" />
-                            </button>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {allTags.map(tag => (
-                              <button
-                                key={tag}
-                                onClick={() => toggleTag(tag)}
-                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                                  activeTags.includes(tag)
-                                    ? 'bg-utcn-blue text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                              >
-                                {tag}
-                              </button>
-                            ))}
-                          </div>
-                          {activeTags.length > 0 && (
-                            <button 
-                              onClick={() => setActiveTags([])}
-                              className="mt-4 w-full text-center text-xs font-bold text-utcn-blue hover:underline"
-                            >
-                              Clear All Filters
-                            </button>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </section>
-
-              {/* Grid */}
-              {isLoading ? (
-                <div className="flex justify-center items-center py-20">
-                  <Loader2 size={48} className="text-utcn-blue animate-spin" />
-                </div>
-              ) : paginatedOpportunities.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {paginatedOpportunities.map((opp) => (
-                    <OpportunityCard 
-                      key={opp.id} 
-                      opportunity={opp} 
-                      onClick={handleCardClick} 
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-20">
-                  <h3 className="text-xl font-semibold">No opportunities found</h3>
-                  <p className="text-gray-500 mt-2">Try adjusting your search or filters.</p>
-                </div>
-              )}
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <nav className="mt-8 flex justify-center items-center gap-4">
-                  <button 
-                    disabled={currentPage === 1}
-                    onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); window.scrollTo(0, 0); }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-gray-300 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft size={16} />
-                    Previous
-                  </button>
-                  <span className="text-sm font-medium text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button 
-                    disabled={currentPage === totalPages}
-                    onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); window.scrollTo(0, 0); }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-gray-300 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                    <ChevronRight size={16} />
-                  </button>
-                </nav>
-              )}
-            </motion.div>
+            <OpportunityList 
+              opportunities={opportunities}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              activeTags={activeTags}
+              toggleTag={toggleTag}
+              allTags={allTags}
+              showFilterMenu={showFilterMenu}
+              setShowFilterMenu={setShowFilterMenu}
+              paginatedOpportunities={paginatedOpportunities}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalPages={totalPages}
+              handleCardClick={handleCardClick}
+            />
           ) : view === 'create' && currentUser?.role === 'professor' ? (
-            <motion.div
-              key="create"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-lg shadow-lg overflow-hidden p-6 sm:p-8 max-w-3xl mx-auto"
-            >
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Post a New Opportunity</h2>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const title = formData.get('title') as string;
-                const abstract = formData.get('abstract') as string;
-                const desc = formData.get('description') as string;
-                const stipend = formData.get('stipend') as string;
-                const dur = formData.get('duration') as string;
-                
-                const newOpp: Opportunity = {
-                  id: Date.now().toString(),
-                  title,
-                  abstract,
-                  description: desc,
-                  stipend,
-                  duration: dur,
-                  deadline: "December 31, 2026",
-                  postDate: "Today",
-                  tags: ["NEW", "RESEARCH"],
-                  requirements: { technical: ["To be specified"], eligibility: ["To be specified"] },
-                  author: {
-                    id: currentUser.id,
-                    name: currentUser.name,
-                    department: currentUser.department || 'General',
-                    avatar: currentUser.avatar
-                  }
-                };
-                setOpportunities([newOpp, ...opportunities]);
-                setView('dashboard');
-              }} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                  <input name="title" required type="text" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-blue focus:border-utcn-blue" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
-                  <input name="description" required type="text" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-blue focus:border-utcn-blue" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Abstract</label>
-                  <textarea name="abstract" required rows={4} className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-blue focus:border-utcn-blue" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-                    <input name="duration" required type="text" placeholder="e.g. 6 Months" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-blue focus:border-utcn-blue" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Stipend / Funding</label>
-                    <input name="stipend" required type="text" placeholder="e.g. Unpaid or €1,000" className="w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-utcn-blue focus:border-utcn-blue" />
-                  </div>
-                </div>
-                <div className="pt-4 flex gap-4">
-                  <button type="submit" className="bg-utcn-blue text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700">
-                    Post Opportunity
-                  </button>
-                  <button type="button" onClick={() => setView('dashboard')} className="px-6 py-2 rounded-lg font-semibold text-gray-600 hover:bg-gray-100">
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+            <CreateOpportunity 
+              currentUser={currentUser}
+              opportunities={opportunities}
+              setOpportunities={setOpportunities}
+              setView={setView}
+            />
           ) : view === 'dashboard' && currentUser?.role === 'professor' ? (
-            <motion.div
-              key="dashboard"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-lg shadow-lg overflow-hidden p-4 sm:p-8 max-w-4xl mx-auto"
-            >
-              <div className="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 className="text-2xl font-bold text-gray-900">My Posted Projects</h2>
-                <button onClick={() => setView('create')} className="bg-utcn-blue text-white px-4 py-2 rounded-lg font-semibold flex items-center shadow hover:bg-blue-700 text-sm">
-                  <Plus className="w-5 h-5 mr-1" /> New Project
-                </button>
-              </div>
-              <div className="space-y-6">
-                {opportunities.filter(o => o.author.id === currentUser.id).length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">You haven't posted any projects yet.</p>
-                ) : (
-                  opportunities.filter(o => o.author.id === currentUser.id).map(opp => {
-                    const oppApps = applications.filter(a => a.opportunityId === opp.id);
-                    return (
-                      <div key={opp.id} className="border border-gray-200 rounded-lg p-5">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-bold text-lg text-gray-800">{opp.title}</h3>
-                          <span className="bg-blue-100 text-utcn-blue px-3 py-1 rounded-full text-xs font-semibold">
-                            {oppApps.length} Applicants
-                          </span>
-                        </div>
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{opp.description}</p>
-                        
-                        {oppApps.length > 0 && (
-                          <div className="bg-gray-50 rounded-md p-4">
-                            <h4 className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-3">Recent Applications</h4>
-                            <div className="space-y-3">
-                              {oppApps.map(app => (
-                                <div key={app.id} className="bg-white border text-sm p-3 rounded shadow-sm">
-                                  <div className="font-semibold text-gray-800 mb-1 flex justify-between">
-                                    <span>{app.studentName}</span>
-                                    <span className="text-gray-400 font-normal text-xs">{app.date}</span>
-                                  </div>
-                                  <p className="text-gray-600 italic">"{app.message}"</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </motion.div>
-          ) : view === 'detail' ? (
-            <motion.div
-              key="detail"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white rounded-lg shadow-lg overflow-hidden"
-            >
-              <div className="p-6 sm:p-8">
-                {/* Back Nav */}
-                <nav className="mb-6">
-                  <button onClick={handleBack} className="flex items-center space-x-2 text-sm font-medium text-utcn-blue hover:underline">
-                    <ArrowLeft size={16} />
-                    <span>Back to Opportunities</span>
-                  </button>
-                </nav>
-
-                {/* Hero */}
-                <header className="mb-8">
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {selectedOpportunity?.tags.map((tag, idx) => (
-                      <span key={idx} className="bg-blue-100 text-utcn-blue px-3 py-1 rounded-full text-xs font-semibold">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                    {selectedOpportunity?.title}
-                  </h1>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-gray-600 border-t pt-4">
-                    <div className="flex items-center gap-3 mb-2 sm:mb-0">
-                      <img
-                        src={selectedOpportunity?.author.avatar}
-                        alt={selectedOpportunity?.author.name}
-                        className="w-8 h-8 rounded-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                      <span className="font-semibold">
-                        {selectedOpportunity?.author.name}
-                      </span>
-                    </div>
-                    <div className="font-semibold">
-                      Deadline: {selectedOpportunity?.deadline}
-                    </div>
-                  </div>
-                </header>
-
-                <div className="prose prose-lg max-w-none">
-                  <h2 className="text-xl font-semibold text-gray-800">Abstract</h2>
-                  <p>{selectedOpportunity?.abstract}</p>
-
-                  <h2 className="text-xl font-semibold text-gray-800 mt-8">Requirements</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                    <div>
-                      <h3 className="font-semibold">Technical Skills</h3>
-                      <ul>
-                        {selectedOpportunity?.requirements.technical.map((req, idx) => (
-                          <li key={idx}>{req}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Eligibility</h3>
-                      <ul>
-                        {selectedOpportunity?.requirements.eligibility.map((req, idx) => (
-                          <li key={idx}>{req}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  
-                  <h2 className="text-xl font-semibold text-gray-800 mt-8">Details</h2>
-                  <div className="flex flex-wrap gap-x-8 gap-y-4 text-base">
-                    <div className="flex items-center gap-2"><CalendarIcon size={16} /> <strong>Post Date:</strong> {selectedOpportunity?.postDate}</div>
-                    <div className="flex items-center gap-2"><Clock size={16} /> <strong>Duration:</strong> {selectedOpportunity?.duration}</div>
-                    <div className="flex items-center gap-2"><DollarSign size={16} /> <strong>Stipend:</strong> {selectedOpportunity?.stipend}</div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <footer className="mt-10 pt-6 border-t flex flex-col sm:flex-row gap-3">
-                  {currentUser?.role === 'student' && (
-                    <button 
-                      onClick={() => {
-                        if (!selectedOpportunity) return;
-                        const hasApplied = applications.some(a => a.opportunityId === selectedOpportunity.id && a.studentId === currentUser.id);
-                        if (hasApplied) {
-                          alert("You've already applied for this opportunity!");
-                          return;
-                        }
-                        
-                        const msg = prompt("Write a brief message for your application:");
-                        if (msg) {
-                          const newApp: Application = {
-                            id: Date.now().toString(),
-                            opportunityId: selectedOpportunity.id,
-                            studentId: currentUser.id,
-                            studentName: currentUser.name,
-                            message: msg,
-                            date: new Date().toLocaleDateString()
-                          };
-                          setApplications([...applications, newApp]);
-                          alert("Application sent successfully!");
-                        }
-                      }}
-                      className="w-full sm:w-auto flex-grow bg-utcn-blue text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                    >
-                      {applications.some(a => a.opportunityId === selectedOpportunity?.id && a.studentId === currentUser?.id) 
-                        ? 'Applied ✓' 
-                        : 'Apply Now'}
-                    </button>
-                  )}
-                  {currentUser?.role === 'professor' && selectedOpportunity?.author.id === currentUser.id && (
-                    <button onClick={() => setView('dashboard')} className="w-full sm:w-auto flex-grow bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 transition-colors">
-                      View Applicants
-                    </button>
-                  )}
-                  <button className="w-full sm:w-auto bg-gray-200 text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors flex items-center justify-center gap-2">
-                    <Bookmark size={18} />
-                    Save
-                  </button>
-                  <button className="w-full sm:w-auto bg-gray-200 text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors flex items-center justify-center gap-2">
-                    <Share2 size={18} />
-                    Share
-                  </button>
-                </footer>
-              </div>
-            </motion.div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-8 bg-white rounded-lg shadow min-h-[50vh]">
-              <Users size={48} className="text-gray-300 mb-4" />
-              <h2 className="text-xl font-bold">Nothing here yet</h2>
-              <button onClick={() => setView('list')} className="text-utcn-blue mt-2 hover:underline">Back to listings</button>
-            </div>
-          )}
+            <TeacherDashboard 
+              currentUser={currentUser}
+              opportunities={opportunities}
+              applications={applications}
+              updateApplicationStatus={updateApplicationStatus}
+              setView={setView}
+            />
+          ) : view === 'dashboard' && currentUser?.role === 'admin' ? (
+            // Admin dashboard for approving professor accounts and managing users/posts
+            <AdminDashboard
+              users={users}
+              opportunities={opportunities}
+              approveProfessor={approveProfessor}
+              fetchAllUsers={fetchAllUsers}
+              deleteUser={deleteUser}
+              deletePost={deletePost}
+            />
+          ) : view === 'detail' && selectedOpportunity ? (
+            <OpportunityDetail 
+              selectedOpportunity={selectedOpportunity}
+              currentUser={currentUser}
+              applications={applications}
+              setView={setView}
+              handleBack={handleBack}
+              setApplyModalOpen={setApplyModalOpen}
+            />
+          ) : view === 'applications' && currentUser?.role === 'student' ? (
+            <StudentApplications 
+              currentUser={currentUser}
+              opportunities={opportunities}
+              applications={applications}
+              setView={setView}
+              setSelectedOpportunity={setSelectedOpportunity}
+            />
+          ) : null}
         </AnimatePresence>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-gray-800 text-white w-full py-8 mt-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} Technical University of Cluj-Napoca. All rights reserved.</p>
-          <div className="flex justify-center gap-4 mt-4">
-            <a href="#" className="hover:underline">Privacy Policy</a>
-            <a href="#" className="hover:underline">Terms of Service</a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
+
+      {applyModalOpen && selectedOpportunity && currentUser && (
+        <ApplicationModal
+          opportunity={selectedOpportunity}
+          onSubmit={async (message, answers, cvFile, transcriptFile) => {
+            const newApp: Application = {
+              id: Date.now().toString(),
+              opportunityId: selectedOpportunity.id,
+              studentId: currentUser.id,
+              studentName: currentUser.name,
+              message: message,
+              date: new Date().toLocaleDateString(),
+              status: 'pending',
+              answers,
+              cvFile,
+              transcriptFile,
+            };
+            // Persist to backend so professor sees the application
+            const res = await fetch('/api/applications', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                opportunityId: newApp.opportunityId,
+                studentId: newApp.studentId,
+                studentName: newApp.studentName,
+                message: newApp.message,
+                answers: newApp.answers,
+                cvFile: newApp.cvFile,
+                transcriptFile: newApp.transcriptFile,
+              }),
+            });
+            if (!res.ok) {
+              const errJson = await res.json().catch(() => ({}));
+              throw new Error(errJson.error || `Server error ${res.status}`);
+            }
+            const json = await res.json().catch(() => ({}));
+            if (json.id) newApp.id = String(json.id);
+            setApplications(prev => [...prev, newApp]);
+            setApplyModalOpen(false);
+          }}
+          onClose={() => setApplyModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

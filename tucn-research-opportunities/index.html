@@ -4,10 +4,29 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>tucn-research-opportunities</title>
+    <meta name="description" content="Discover and apply for research opportunities at the Technical University of Cluj-Napoca." />
+    <title>Research Opportunities — UTCN</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>
+    <!-- Temporary: auto-unregister service workers and clear caches to avoid stale SW blocking API calls -->
+    <script>
+      (function(){
+        if ('serviceWorker' in navigator) {
+          try {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              regs.forEach(r => r.unregister());
+            }).catch(()=>{});
+          } catch (e) {}
+        }
+        if ('caches' in window) {
+          try { caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(()=>{}); } catch (e) {}
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

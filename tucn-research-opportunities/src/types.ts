@@ -1,3 +1,8 @@
+export interface ApplicationField {
+  id: string;
+  question: string;
+}
+
 export interface Opportunity {
   id: string;
   title: string;
@@ -18,9 +23,13 @@ export interface Opportunity {
     technical: string[];
     eligibility: string[];
   };
+  applicationFields?: ApplicationField[];
+  // whether the professor requires CV / transcript when students apply
+  requireCv?: boolean;
+  requireTranscript?: boolean;
 }
 
-export type Role = 'student' | 'professor';
+export type Role = 'student' | 'professor' | 'admin';
 
 export interface User {
   id: string;
@@ -28,6 +37,26 @@ export interface User {
   role: Role;
   avatar: string;
   department?: string;
+  // for professor accounts: whether admin approved this account
+  approved?: boolean;
+  // credentials for demo (in a real app do not store plain passwords)
+  email?: string;
+  password?: string;
+}
+
+export type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface ApplicationAnswer {
+  fieldId: string;
+  question: string;
+  answer: string;
+}
+
+export interface UploadedFile {
+  name: string;
+  size: number;       // bytes
+  type: string;       // MIME
+  dataUrl: string;    // base64 data URL for in-memory preview / download
 }
 
 export interface Application {
@@ -37,6 +66,12 @@ export interface Application {
   studentName: string;
   message: string;
   date: string;
+  status: ApplicationStatus;
+  answers?: ApplicationAnswer[];
+  cvFile?: UploadedFile;
+  transcriptFile?: UploadedFile;
+  professorReply?: string;
+  replyDate?: string;
 }
 
 export const MOCK_STUDENT: User = {
@@ -46,6 +81,13 @@ export const MOCK_STUDENT: User = {
   avatar: "https://picsum.photos/seed/alexandru/100/100"
 };
 
+export const MOCK_STUDENT_2: User = {
+  id: "s2",
+  name: "Maria Ionescu",
+  role: 'student',
+  avatar: "https://picsum.photos/seed/maria/100/100"
+};
+
 export const MOCK_PROFESSOR: User = {
   id: "p1",
   name: "Dr. Andrew Julian",
@@ -53,6 +95,24 @@ export const MOCK_PROFESSOR: User = {
   department: "Computer Science",
   avatar: "https://picsum.photos/seed/julian/100/100"
 };
+
+export const MOCK_ADMIN: User = {
+  id: 'admin1',
+  name: 'UTCN Admin',
+  role: 'admin',
+  avatar: 'https://picsum.photos/seed/admin/100/100',
+  approved: true,
+};
+
+// simple demo credentials
+MOCK_ADMIN.email = 'admin@utcn.edu';
+MOCK_ADMIN.password = '$2a$10$jKpduBOrdJyVEf878vgMbuBR4iAD8aYJLzD36F/sw47Dd3DpW7vBW';
+MOCK_STUDENT.email = 'alex.pop@student.utcn';
+MOCK_STUDENT.password = '$2a$10$wVEFctevsP/csa9mPHn3ze7iXC0o27AovEYV8tK7mKUofg8fCAlPW';
+MOCK_STUDENT_2.email = 'maria.ionescu@student.utcn';
+MOCK_STUDENT_2.password = '$2a$10$POgl9adLyX5cgEVIotqSBueaCxdYonk8gdxqhEe.CMCtm8ZPd6pA2';
+MOCK_PROFESSOR.email = 'andrew.julian@utcn';
+MOCK_PROFESSOR.password = '$2a$10$YBbQUEYbexsJdaOxsItzm.YXyG2ZMY/W..EDXqGk1I3HE3I09MD5O';
 
 export const MOCK_OPPORTUNITIES: Opportunity[] = [
   {
@@ -74,7 +134,12 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     requirements: {
       technical: ["Proficiency in Python and PyTorch", "Understanding of Linear Algebra", "Prior experience with Qiskit or similar tools"],
       eligibility: ["Minimum GPA 8.5 / 10", "Enrolled in STEM program"]
-    }
+    },
+    applicationFields: [
+      { id: "f1", question: "Describe your experience with PyTorch or similar deep learning frameworks." },
+      { id: "f2", question: "Have you worked with quantum computing tools (e.g. Qiskit)? Please elaborate." },
+      { id: "f3", question: "Why are you interested in this specific project?" }
+    ]
   },
   {
     id: "29402",
@@ -116,7 +181,11 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     requirements: {
       technical: ["OpenCV", "ROS2", "Python/C++"],
       eligibility: ["Automation or CS students"]
-    }
+    },
+    applicationFields: [
+      { id: "f1", question: "Describe a computer vision project you have worked on." },
+      { id: "f2", question: "What is your experience with ROS2 or similar robotics middleware?" }
+    ]
   },
   {
     id: "29404",
@@ -201,5 +270,78 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
       technical: ["LoRaWAN", "Raspberry Pi/Arduino", "Python"],
       eligibility: ["Undergraduate students"]
     }
+  }
+];
+
+export const MOCK_APPLICATIONS: Application[] = [
+  {
+    id: "app1",
+    opportunityId: "29401",
+    studentId: "s1",
+    studentName: "Alexandru Pop",
+    message: "I have extensive experience with PyTorch and quantum computing simulations. I would love to contribute to the Q-Symmetry framework and help document its performance metrics.",
+    date: "Oct 1, 2026",
+    status: "accepted",
+    answers: [
+      { fieldId: "f1", question: "Describe your experience with PyTorch or similar deep learning frameworks.", answer: "I have used PyTorch for two years in academic projects, including implementing a transformer model from scratch and training custom CNNs on CIFAR-10." },
+      { fieldId: "f2", question: "Have you worked with quantum computing tools (e.g. Qiskit)? Please elaborate.", answer: "Yes, I completed IBM's Qiskit summer school and built a small variational quantum eigensolver as a personal project." },
+      { fieldId: "f3", question: "Why are you interested in this specific project?", answer: "The intersection of neural networks and quantum gates is exactly the research direction I want to pursue for my master's thesis." }
+    ],
+    professorReply: "Thank you for your application, Alexandru! Your PyTorch background is exactly what we need. Please reach out at andrew.julian@cs.utcluj.ro to arrange an onboarding meeting next week.",
+    replyDate: "Oct 3, 2026"
+  },
+  {
+    id: "app2",
+    opportunityId: "29403",
+    studentId: "s1",
+    studentName: "Alexandru Pop",
+    message: "I am proficient in OpenCV and have worked with ROS2 for a semester project. I am very interested in the drone vision work and can dedicate 20 hours per week.",
+    date: "Sept 15, 2026",
+    status: "rejected",
+    answers: [
+      { fieldId: "f1", question: "Describe a computer vision project you have worked on.", answer: "I built a lane detection system for a miniature RC car using OpenCV and a Raspberry Pi camera as part of my third-year lab course." },
+      { fieldId: "f2", question: "What is your experience with ROS2 or similar robotics middleware?", answer: "I followed the official ROS2 Humble tutorials and integrated a basic publisher/subscriber system for a semester robotics assignment." }
+    ],
+    professorReply: "Hi Alexandru, we appreciate your interest. Unfortunately we have filled all positions for this cycle with students who have more hands-on robotics hardware hardware experience. We encourage you to apply next semester!",
+    replyDate: "Sept 20, 2026"
+  },
+  {
+    id: "app3",
+    opportunityId: "29406",
+    studentId: "s1",
+    studentName: "Alexandru Pop",
+    message: "As a native Romanian speaker with experience fine-tuning HuggingFace models, I believe I would be a great fit for the medical NLP project. I have attached my CV and a relevant project repository.",
+    date: "Oct 5, 2026",
+    status: "pending"
+  },
+  {
+    id: "app4",
+    opportunityId: "29401",
+    studentId: "s2",
+    studentName: "Maria Ionescu",
+    message: "I am very interested in the hardware implementation aspects of the Q-Symmetry framework. I have attached my portfolio with my previous FPGA projects.",
+    date: "Oct 2, 2026",
+    status: "pending",
+    answers: [
+      { fieldId: "f1", question: "Describe your experience with PyTorch or similar deep learning frameworks.", answer: "I have mostly worked with Tensorflow so far, but I am learning PyTorch for this project." },
+      { fieldId: "f2", question: "Have you worked with quantum computing tools (e.g. Qiskit)? Please elaborate.", answer: "I have taken theoretical courses on Quantum Algorithms, but have not yet programmed using Qiskit." },
+      { fieldId: "f3", question: "Why are you interested in this specific project?", answer: "I want to gain hands-on experience bridging the gap between quantum gates and neural network implementations." }
+    ]
+  },
+  {
+    id: "app5",
+    opportunityId: "29401",
+    studentId: "s3",
+    studentName: "Mihai Vasile",
+    message: "I am confident my mathematics background makes me an ideal candidate for this project.",
+    date: "Oct 4, 2026",
+    status: "rejected",
+    answers: [
+      { fieldId: "f1", question: "Describe your experience with PyTorch or similar deep learning frameworks.", answer: "None directly, but strong math foundation." },
+      { fieldId: "f2", question: "Have you worked with quantum computing tools (e.g. Qiskit)? Please elaborate.", answer: "No." },
+      { fieldId: "f3", question: "Why are you interested in this specific project?", answer: "Looking for an exciting thesis topic." }
+    ],
+    professorReply: "Hi Mihai, thanks for your interest. We strictly require PyTorch experience for this position. Best of luck!",
+    replyDate: "Oct 5, 2026"
   }
 ];
