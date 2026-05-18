@@ -38,7 +38,10 @@ function savedOpportunities(): Opportunity[] | null {
 }
 
 export default function App() {
+  // loadSession() is called once outside render cycle — safe because it's a module-level function
   const initialSession = loadSession();
+  // 'detail' requires selectedOpportunity state which can't be restored from localStorage — fall back to safe view
+  const safeInitialView: View = (initialSession?.view === 'detail' || !initialSession) ? (initialSession?.user?.role === 'professor' || initialSession?.user?.role === 'admin' ? 'dashboard' : 'list') : initialSession.view;
 
   // Redirect URL on mount: if no session and not already on /login, push /login
   // If session exists and URL is /login, push back to /
@@ -55,7 +58,7 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([MOCK_ADMIN, MOCK_STUDENT, MOCK_STUDENT_2, { ...MOCK_PROFESSOR, approved: true }]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(savedOpportunities() ?? MOCK_OPPORTUNITIES);
   const [applications, setApplications] = useState<Application[]>(MOCK_APPLICATIONS);
-  const [view, setView] = useState<View>(initialSession?.view ?? 'login');
+  const [view, setView] = useState<View>(initialSession ? safeInitialView : 'login');
   
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
