@@ -42,7 +42,7 @@ export default function App() {
     setView(user.role === 'professor' ? 'dashboard' : user.role === 'admin' ? 'dashboard' : 'list');
   };
 
-  const handleSignup = (data: { name: string; role: 'student' | 'professor'; department?: string }) => {
+  const handleSignup = (data: { name: string; role: 'student' | 'professor' | 'admin'; department?: string; email?: string; password?: string }) => {
     const id = Date.now().toString();
     const newUser: User = {
       id,
@@ -51,15 +51,21 @@ export default function App() {
       avatar: `https://picsum.photos/seed/${encodeURIComponent(data.name)}/100/100`,
       department: data.department,
       approved: data.role === 'student' ? true : false,
+      email: data.email,
+      password: data.password,
     };
     const updated = [newUser, ...users];
     setUsers(updated);
-    localStorage.setItem('tucn_users', JSON.stringify(updated));
+    try { localStorage.setItem('tucn_users', JSON.stringify(updated)); } catch (e) { /* ignore */ }
     if (newUser.role === 'student') {
       setCurrentUser(newUser);
       setView('list');
-    } else {
+    } else if (newUser.role === 'professor') {
       alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
+    } else if (newUser.role === 'admin') {
+      // admin created via UI — log them in for convenience
+      setCurrentUser(newUser);
+      setView('dashboard');
     }
   };
 

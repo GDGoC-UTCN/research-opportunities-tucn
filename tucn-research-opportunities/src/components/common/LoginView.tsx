@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import Logo from './Logo';
 import { BookOpen, Users, FlaskConical, GraduationCap, ArrowRight } from 'lucide-react';
 
+interface SignupData {
+  name: string;
+  role: 'student' | 'professor' | 'admin';
+  department?: string;
+  email?: string;
+  password?: string;
+}
+
 interface Props {
   handleLogin: (role: 'student' | 'professor' | 'admin') => void;
-  handleSignup: (data: { name: string; role: 'student' | 'professor'; department?: string }) => void;
+  handleSignup: (data: SignupData) => void;
 }
 
 export default function LoginView({ handleLogin, handleSignup }: Props) {
+  const initialRole = (typeof window !== 'undefined' && window.location && window.location.pathname === '/admin') ? 'admin' as const : null;
+  const [selectedRole, setSelectedRole] = useState<null | 'student' | 'professor' | 'admin'>(initialRole);
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row font-sans">
 
@@ -84,88 +96,89 @@ export default function LoginView({ handleLogin, handleSignup }: Props) {
             <span className="font-bold text-gray-900">UTCN Research Portal</span>
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
-          <p className="text-gray-500 text-sm mb-8">Sign in to access your research dashboard.</p>
+          {/* If no role selected: show the two large Continue buttons */}
+          {!selectedRole ? (
+            <div className="space-y-3">
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome</h2>
+              <p className="text-gray-500 text-sm mb-6">Continue as a student or professor to proceed.</p>
 
-          <div className="space-y-3">
-            {/* Lightweight login form (email + password) */}
-            <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); const email = fd.get('loginEmail') as string; const pass = fd.get('loginPass') as string; const role = (fd.get('loginRole') as string) as 'student' | 'professor' | 'admin';
-              // find user by role and credentials handled in App via handleLoginEmail
-              (window as any).__handleLoginEmail?.(email, pass, role);
-            }} className="grid grid-cols-1 gap-2">
-              <div className="flex gap-2">
-                <input name="loginEmail" type="email" required placeholder="Email" className="flex-1 text-sm px-3 py-2 border rounded-lg" />
-                <input name="loginPass" type="password" required placeholder="Password" className="w-36 text-sm px-3 py-2 border rounded-lg" />
-              </div>
-              <div className="flex gap-2">
-                <select name="loginRole" defaultValue="student" className="text-sm px-2 py-2 border rounded-lg">
-                  <option value="student">Student</option>
-                  <option value="professor">Professor</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <button type="submit" className="px-3 py-2 bg-utcn-navy text-white rounded-lg">Sign in</button>
-              </div>
-            </form>
-            {/* Student button */}
-            <motion.button
-              whileHover={{ scale: 1.015 }}
-              whileTap={{ scale: 0.985 }}
-              onClick={() => handleLogin('student')}
-              className="group w-full flex items-center justify-between py-4 px-5 bg-utcn-primary text-white rounded-xl font-semibold text-sm shadow-md shadow-blue-200 hover:bg-utcn-primary-dark transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <GraduationCap size={16} />
+              <motion.button
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.985 }}
+                onClick={() => { setSelectedRole('student'); setMode('signin'); }}
+                className="group w-full flex items-center justify-between py-4 px-5 bg-utcn-primary text-white rounded-xl font-semibold text-sm shadow-md shadow-blue-200 hover:bg-utcn-primary-dark transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <GraduationCap size={16} />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-semibold">Continue as Student</div>
+                    <div className="text-blue-200 text-xs font-normal">Browse &amp; apply to opportunities</div>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <div className="font-semibold">Continue as Student</div>
-                  <div className="text-blue-200 text-xs font-normal">Browse &amp; apply to opportunities</div>
-                </div>
-              </div>
-              <ArrowRight size={16} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-            </motion.button>
+                <ArrowRight size={16} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </motion.button>
 
-            {/* Professor button */}
-            <motion.button
-              whileHover={{ scale: 1.015 }}
-              whileTap={{ scale: 0.985 }}
-              onClick={() => handleLogin('professor')}
-              className="group w-full flex items-center justify-between py-4 px-5 bg-utcn-navy text-white rounded-xl font-semibold text-sm shadow-md shadow-slate-200 hover:bg-utcn-navy-light transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center">
-                  <BookOpen size={16} />
+              <motion.button
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.985 }}
+                onClick={() => { setSelectedRole('professor'); setMode('signin'); }}
+                className="group w-full flex items-center justify-between py-4 px-5 bg-utcn-navy text-white rounded-xl font-semibold text-sm shadow-md shadow-slate-200 hover:bg-utcn-navy-light transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center">
+                    <BookOpen size={16} />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-semibold">Continue as Professor</div>
+                    <div className="text-blue-200 text-xs font-normal">Post &amp; manage research projects</div>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <div className="font-semibold">Continue as Professor</div>
-                  <div className="text-blue-200 text-xs font-normal">Post &amp; manage research projects</div>
-                </div>
-              </div>
-              <ArrowRight size={16} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-            </motion.button>
-          
-            {/* Signup small form */}
-            <div className="mt-4 bg-white border border-gray-100 rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-2">New here? Create an account</p>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const form = e.currentTarget as HTMLFormElement;
-                const fd = new FormData(form);
-                const name = fd.get('name') as string;
-                const role = fd.get('role') as 'student' | 'professor';
-                const dept = fd.get('department') as string | undefined;
-                handleSignup({ name, role, department: dept });
-                form.reset();
-              }} className="flex gap-2">
-                <input name="name" required placeholder="Your name" className="flex-1 text-sm px-3 py-2 border rounded-lg" />
-                <select name="role" defaultValue="student" className="text-sm px-2 py-2 border rounded-lg">
-                  <option value="student">Student</option>
-                  <option value="professor">Professor</option>
-                </select>
-                <button className="px-3 py-2 bg-utcn-primary text-white rounded-lg text-sm">Sign up</button>
-              </form>
+                <ArrowRight size={16} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+              </motion.button>
+
+              {/* Admin access is intentionally hidden from the main UI; use the /admin path to access admin sign-in */}
             </div>
-          </div>
+          ) : (
+            // Role selected: show compact sign in / sign up panel
+            <div className="bg-white border border-gray-100 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-xs text-gray-500">Selected role</div>
+                  <div className="font-semibold text-lg text-gray-900">{selectedRole === 'student' ? 'Student' : selectedRole === 'professor' ? 'Professor' : 'Admin'}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="text-sm text-gray-500 hover:underline" onClick={() => setSelectedRole(null)}>Change</button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mb-4">
+                <button onClick={() => setMode('signin')} className={`flex-1 py-2 rounded-lg ${mode === 'signin' ? 'bg-utcn-navy text-white' : 'bg-gray-50 text-gray-700'}`}>Sign in</button>
+                <button onClick={() => setMode('signup')} className={`flex-1 py-2 rounded-lg ${mode === 'signup' ? 'bg-utcn-primary text-white' : 'bg-gray-50 text-gray-700'}`}>Sign up</button>
+              </div>
+
+              {mode === 'signin' ? (
+                <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); const email = fd.get('loginEmail') as string; const pass = fd.get('loginPass') as string; (window as any).__handleLoginEmail?.(email, pass, selectedRole as any); }} className="grid gap-3">
+                  <input name="loginEmail" type="email" required placeholder="Email" className="w-full text-sm px-3 py-2 border rounded-lg" />
+                  <input name="loginPass" type="password" required placeholder="Password" className="w-full text-sm px-3 py-2 border rounded-lg" />
+                  <div className="flex justify-end">
+                    <button type="submit" className="px-3 py-2 bg-utcn-navy text-white rounded-lg">Sign in</button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={(e) => { e.preventDefault(); const form = e.currentTarget as HTMLFormElement; const fd = new FormData(form); const name = fd.get('name') as string; const dept = fd.get('department') as string | undefined; const email = fd.get('signupEmail') as string | null; const password = fd.get('signupPass') as string | null; handleSignup({ name, role: selectedRole as any, department: dept, email: email || undefined, password: password || undefined }); form.reset(); }} className="grid gap-3">
+                  <input name="name" required placeholder="Your full name" className="w-full text-sm px-3 py-2 border rounded-lg" />
+                  {selectedRole === 'professor' && <input name="department" placeholder="Department (optional)" className="w-full text-sm px-3 py-2 border rounded-lg" />}
+                  <input name="signupEmail" type="email" required placeholder="Email" className="w-full text-sm px-3 py-2 border rounded-lg" />
+                  <input name="signupPass" type="password" required placeholder="Password" className="w-full text-sm px-3 py-2 border rounded-lg" />
+                  <div className="flex justify-end">
+                    <button type="submit" className="px-3 py-2 bg-utcn-primary text-white rounded-lg">Create account</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
 
           <p className="text-center text-xs text-gray-400 mt-8 leading-relaxed">
             By signing in you agree to the{' '}
