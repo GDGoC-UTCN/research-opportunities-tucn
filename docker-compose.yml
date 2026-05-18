@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  frontend:
+    build:
+      context: ./tucn-research-opportunities
+      dockerfile: Dockerfile
+    image: tucn-frontend:latest
+    ports:
+      - '8080:80'
+    depends_on:
+      - api
+    networks:
+      - tucn-net
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: tucn-api:latest
+    environment:
+      - DB_PATH=/data/data.sqlite
+    volumes:
+      - tucn_api_data:/data
+    networks:
+      - tucn-net
+
+volumes:
+  tucn_api_data:
+
+networks:
+  tucn-net:
+    driver: bridge
