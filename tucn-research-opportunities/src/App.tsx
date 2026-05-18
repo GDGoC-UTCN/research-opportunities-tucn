@@ -146,6 +146,13 @@ export default function App() {
   // expose small global function for the simple login form in LoginView
   (window as any).__handleLoginEmail = handleLoginEmail;
 
+  // When an admin logs in, fetch the full user list so the AdminDashboard is populated
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      fetchAllUsers().catch(() => {});
+    }
+  }, [currentUser]);
+
   const approveProfessor = async (id: string) => {
     try {
       // ask backend to approve the professor so approval is persisted
