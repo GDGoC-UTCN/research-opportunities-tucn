@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const cors = require('cors');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data.sqlite');
 
@@ -21,6 +22,7 @@ db.serialize(() => {
 });
 
 const app = express();
+app.use(cors());
 app.use(bodyParser.json());
 
 // Signup: name, email, password, role, department

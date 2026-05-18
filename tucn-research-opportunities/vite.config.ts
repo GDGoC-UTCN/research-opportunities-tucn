@@ -14,6 +14,15 @@ export default defineConfig(({mode}) => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
+      // Proxy API requests to backend during local development
+      proxy: {
+        '/api': {
+          target: 'http://localhost:4000',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (p) => p.replace(/^\/api/, '/api')
+        }
+      }
     },
   };
 });

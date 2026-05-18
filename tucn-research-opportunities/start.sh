@@ -56,8 +56,12 @@ function start() {
 
   echo "Seeding admin user (if seed-admin script present)"
   # try running seed-admin through api service
-  if dc_cmd ps --services | grep -q api >/dev/null 2>&1; then
-    dc_cmd run --rm api npm run seed-admin || true
+  if dc_cmd ps --services | grep -q migrations >/dev/null 2>&1; then
+    # use the same image to run knex seed
+    dc_cmd run --rm migrations /bin/sh -c "npx knex seed:run --knexfile /app/knexfile.js --specific=01_admin_seed.js" || true
+  elif dc_cmd ps --services | grep -q api >/dev/null 2>&1; then
+    # fallback: run knex seed inside api container, or the node script
+    dc_cmd run --rm api /bin/sh -c "npx knex seed:run --knexfile knexfile.js --specific=01_admin_seed.js || npm run seed-admin" || true
   fi
 
   echo "Stack started. Access frontend at http://localhost:8080/ (unless overridden)"
