@@ -516,23 +516,25 @@ export default function App() {
               transcriptFile,
             };
             // Persist to backend so professor sees the application
-            try {
-              const res = await fetch('/api/applications', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  opportunityId: newApp.opportunityId,
-                  studentId: newApp.studentId,
-                  studentName: newApp.studentName,
-                  message: newApp.message,
-                  answers: newApp.answers,
-                  cvFile: newApp.cvFile,
-                  transcriptFile: newApp.transcriptFile,
-                }),
-              });
-              const json = await res.json().catch(() => ({}));
-              if (json.id) newApp.id = String(json.id);
-            } catch { /* server unreachable — keep local id */ }
+            const res = await fetch('/api/applications', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                opportunityId: newApp.opportunityId,
+                studentId: newApp.studentId,
+                studentName: newApp.studentName,
+                message: newApp.message,
+                answers: newApp.answers,
+                cvFile: newApp.cvFile,
+                transcriptFile: newApp.transcriptFile,
+              }),
+            });
+            if (!res.ok) {
+              const errJson = await res.json().catch(() => ({}));
+              throw new Error(errJson.error || `Server error ${res.status}`);
+            }
+            const json = await res.json().catch(() => ({}));
+            if (json.id) newApp.id = String(json.id);
             setApplications(prev => [...prev, newApp]);
             setApplyModalOpen(false);
           }}

@@ -55,7 +55,8 @@ db.serialize(() => {
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '20mb' }));
+app.use(bodyParser.urlencoded({ limit: '20mb', extended: true }));
 
 // Signup: name, email, password, role, department
 app.post('/signup', async (req, res) => {

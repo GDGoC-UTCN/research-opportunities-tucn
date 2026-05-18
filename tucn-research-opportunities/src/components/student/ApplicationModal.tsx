@@ -5,7 +5,7 @@ import { Opportunity, ApplicationAnswer, UploadedFile } from '../../types';
 
 interface Props {
   opportunity: Opportunity;
-  onSubmit: (message: string, answers: ApplicationAnswer[], cvFile?: UploadedFile, transcriptFile?: UploadedFile) => void;
+  onSubmit: (message: string, answers: ApplicationAnswer[], cvFile?: UploadedFile, transcriptFile?: UploadedFile) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -130,8 +130,9 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
   const [cvFile, setCvFile] = useState<UploadedFile | undefined>();
   const [transcriptFile, setTranscriptFile] = useState<UploadedFile | undefined>();
   const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     if (opportunity.requireCv && !cvFile) {
@@ -147,7 +148,13 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
       question: f.question,
       answer: answers[f.id] ?? '',
     }));
-    onSubmit(message, result, cvFile, transcriptFile);
+    setSubmitting(true);
+    try {
+      await onSubmit(message, result, cvFile, transcriptFile);
+    } catch {
+      setFormError('Failed to submit — please try again.');
+      setSubmitting(false);
+    }
   };
 
   const textareaClass =
@@ -262,10 +269,11 @@ export default function ApplicationModal({ opportunity, onSubmit, onClose }: Pro
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-utcn-primary text-white rounded-xl text-sm font-semibold hover:bg-utcn-primary-dark transition-colors flex items-center gap-2 shadow-md shadow-blue-100"
+                disabled={submitting}
+                className="px-6 py-2.5 bg-utcn-primary text-white rounded-xl text-sm font-semibold hover:bg-utcn-primary-dark transition-colors flex items-center gap-2 shadow-md shadow-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Send size={14} />
-                Submit Application
+                {submitting ? 'Submitting…' : 'Submit Application'}
               </button>
             </div>
           </form>
