@@ -88,6 +88,24 @@ export default function LoginView({ handleLogin, handleSignup }: Props) {
           <p className="text-gray-500 text-sm mb-8">Sign in to access your research dashboard.</p>
 
           <div className="space-y-3">
+            {/* Lightweight login form (email + password) */}
+            <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); const email = fd.get('loginEmail') as string; const pass = fd.get('loginPass') as string; const role = (fd.get('loginRole') as string) as 'student' | 'professor' | 'admin';
+              // find user by role and credentials handled in App via handleLoginEmail
+              (window as any).__handleLoginEmail?.(email, pass, role);
+            }} className="grid grid-cols-1 gap-2">
+              <div className="flex gap-2">
+                <input name="loginEmail" type="email" required placeholder="Email" className="flex-1 text-sm px-3 py-2 border rounded-lg" />
+                <input name="loginPass" type="password" required placeholder="Password" className="w-36 text-sm px-3 py-2 border rounded-lg" />
+              </div>
+              <div className="flex gap-2">
+                <select name="loginRole" defaultValue="student" className="text-sm px-2 py-2 border rounded-lg">
+                  <option value="student">Student</option>
+                  <option value="professor">Professor</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button type="submit" className="px-3 py-2 bg-utcn-navy text-white rounded-lg">Sign in</button>
+              </div>
+            </form>
             {/* Student button */}
             <motion.button
               whileHover={{ scale: 1.015 }}

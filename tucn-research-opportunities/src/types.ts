@@ -39,6 +39,9 @@ export interface User {
   department?: string;
   // for professor accounts: whether admin approved this account
   approved?: boolean;
+  // credentials for demo (in a real app do not store plain passwords)
+  email?: string;
+  password?: string;
 }
 
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
@@ -100,6 +103,16 @@ export const MOCK_ADMIN: User = {
   avatar: 'https://picsum.photos/seed/admin/100/100',
   approved: true,
 };
+
+// simple demo credentials
+MOCK_ADMIN.email = 'admin@utcn.edu';
+MOCK_ADMIN.password = 'adminpass';
+MOCK_STUDENT.email = 'alex.pop@student.utcn';
+MOCK_STUDENT.password = 'studentpass';
+MOCK_STUDENT_2.email = 'maria.ionescu@student.utcn';
+MOCK_STUDENT_2.password = 'studentpass2';
+MOCK_PROFESSOR.email = 'andrew.julian@utcn';
+MOCK_PROFESSOR.password = 'profpass';
 
 export const MOCK_OPPORTUNITIES: Opportunity[] = [
   {

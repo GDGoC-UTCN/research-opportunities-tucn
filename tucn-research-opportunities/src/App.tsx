@@ -52,7 +52,9 @@ export default function App() {
       department: data.department,
       approved: data.role === 'student' ? true : false,
     };
-    setUsers(prev => [newUser, ...prev]);
+    const updated = [newUser, ...users];
+    setUsers(updated);
+    localStorage.setItem('tucn_users', JSON.stringify(updated));
     if (newUser.role === 'student') {
       setCurrentUser(newUser);
       setView('list');
@@ -60,6 +62,20 @@ export default function App() {
       alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
     }
   };
+
+  // Email/password login handler (called from LoginView via a small global hook)
+  const handleLoginEmail = (email: string, password: string, role: 'student' | 'professor' | 'admin') => {
+    const user = users.find(u => u.email === email && u.password === password && u.role === role && (role !== 'professor' || u.approved));
+    if (!user) {
+      alert('Invalid credentials or account not approved.');
+      return;
+    }
+    setCurrentUser(user);
+    setView(user.role === 'professor' ? 'dashboard' : user.role === 'admin' ? 'dashboard' : 'list');
+  };
+
+  // expose small global function for the simple login form in LoginView
+  (window as any).__handleLoginEmail = handleLoginEmail;
 
   const approveProfessor = (id: string) => {
     setUsers(prev => prev.map(u => u.id === id ? { ...u, approved: true } : u));
@@ -81,6 +97,30 @@ export default function App() {
   useEffect(() => {
     loadPostings();
   }, []);
+
+  // load users from localStorage (if present)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('tucn_users');
+      if (raw) {
+        const parsed = JSON.parse(raw) as User[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setUsers(parsed);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  // persist users whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('tucn_users', JSON.stringify(users));
+    } catch (e) {
+      // ignore
+    }
+  }, [users]);
 
   useEffect(() => {
     setCurrentPage(1);
