@@ -106,13 +106,13 @@ export const MOCK_ADMIN: User = {
 
 // simple demo credentials
 MOCK_ADMIN.email = 'admin@utcn.edu';
-MOCK_ADMIN.password = 'adminpass';
+MOCK_ADMIN.password = '$2a$10$jKpduBOrdJyVEf878vgMbuBR4iAD8aYJLzD36F/sw47Dd3DpW7vBW';
 MOCK_STUDENT.email = 'alex.pop@student.utcn';
-MOCK_STUDENT.password = 'studentpass';
+MOCK_STUDENT.password = '$2a$10$wVEFctevsP/csa9mPHn3ze7iXC0o27AovEYV8tK7mKUofg8fCAlPW';
 MOCK_STUDENT_2.email = 'maria.ionescu@student.utcn';
-MOCK_STUDENT_2.password = 'studentpass2';
+MOCK_STUDENT_2.password = '$2a$10$POgl9adLyX5cgEVIotqSBueaCxdYonk8gdxqhEe.CMCtm8ZPd6pA2';
 MOCK_PROFESSOR.email = 'andrew.julian@utcn';
-MOCK_PROFESSOR.password = 'profpass';
+MOCK_PROFESSOR.password = '$2a$10$YBbQUEYbexsJdaOxsItzm.YXyG2ZMY/W..EDXqGk1I3HE3I09MD5O';
 
 export const MOCK_OPPORTUNITIES: Opportunity[] = [
   {
