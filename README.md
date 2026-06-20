@@ -50,8 +50,9 @@ Login calls `POST /api/login` with email, password, and the selected role. The b
 Cookie behavior:
 
 - `httpOnly: true`
-- `sameSite: "lax"` by default, or `"strict"` when `COOKIE_SAME_SITE=strict`
-- `secure: true` when `NODE_ENV=production`
+- `sameSite: "lax"` by default; set `COOKIE_SAME_SITE=strict` or `COOKIE_SAME_SITE=none` only when needed
+- `secure` is controlled by `COOKIE_SECURE`; use `false` for HTTP/IP testing and `true` behind HTTPS
+- optional `COOKIE_DOMAIN` can scope cookies for a parent domain; leave it empty for host-only cookies
 - default expiration: 7 days
 
 Session restore calls `GET /api/me`. Logout calls `POST /api/logout` and clears the auth cookie.
@@ -62,6 +63,9 @@ CSRF behavior:
 - All `POST`, `PATCH`, and `DELETE` requests must send `X-CSRF-Token`.
 - `GET`, `HEAD`, `OPTIONS`, and health checks do not require CSRF.
 - The frontend `apiFetch` helper fetches and sends the token automatically.
+- Login, signup, and logout use the same CSRF flow as other state-changing requests.
+
+Credentialed CORS uses an allowlist from `CORS_ORIGIN`. Multiple origins are comma-separated. Unknown origins are rejected; requests with no `Origin` header are allowed for server-to-server checks.
 
 ## Backend Middleware
 
@@ -115,10 +119,12 @@ PORT=4000
 DB_PATH=./backend/data.sqlite
 JWT_SECRET=replace-with-at-least-32-random-characters
 CSRF_SECRET=replace-with-at-least-32-random-characters
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=https://ro.utcluj.ro,http://10.20.7.149:8080,http://localhost:8080,http://localhost:3000
 AUTH_COOKIE_NAME=tucn_auth
 CSRF_COOKIE_NAME=tucn_csrf
 COOKIE_SAME_SITE=lax
+COOKIE_SECURE=false
+COOKIE_DOMAIN=
 JWT_EXPIRES_IN=7d
 COOKIE_MAX_AGE_MS=604800000
 CSRF_COOKIE_MAX_AGE_MS=7200000
@@ -139,7 +145,7 @@ ADMIN_NAME=AIRi Admin
 RESET_ADMIN_PASSWORD=false
 ```
 
-For production, set `NODE_ENV=production` behind HTTPS so cookies use `secure: true`.
+For HTTP/IP VM testing, use `COOKIE_SECURE=false` and `COOKIE_SAME_SITE=lax`. For HTTPS production, use `COOKIE_SECURE=true` and keep `COOKIE_SAME_SITE=lax` or `strict` unless a cross-site embedding requirement exists.
 
 Admin seeding is idempotent. The primary admin email is normalized case-insensitively from `ADMIN_EMAIL` and defaults to `AIRI@campus.utcluj.ro`. Existing admin passwords are not reset unless `RESET_ADMIN_PASSWORD=true` and `ADMIN_INITIAL_PASSWORD` is provided.
 
@@ -180,6 +186,21 @@ Open [http://localhost:8080](http://localhost:8080). SQLite persists in the `tuc
 
 MinIO object data persists in the `tucn_minio_data` Docker volume. The `createbuckets` service creates the configured bucket idempotently and keeps it private.
 
+For the VM deployment, `.env` should include at least:
+
+```env
+JWT_SECRET=replace-with-at-least-32-random-characters
+CSRF_SECRET=replace-with-at-least-32-random-characters
+ADMIN_EMAIL=AIRI@campus.utcluj.ro
+ADMIN_INITIAL_PASSWORD=replace-with-a-strong-initial-admin-password
+CORS_ORIGIN=https://ro.utcluj.ro,http://10.20.7.149:8080,http://localhost:8080,http://localhost:3000
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=lax
+COOKIE_DOMAIN=
+```
+
+Switch `COOKIE_SECURE=true` when serving the app through HTTPS. Never commit `.env`.
+
 ## Verification
 
 ```bash
@@ -194,6 +215,34 @@ npm run build
 cd ..
 JWT_SECRET=replace-with-at-least-32-random-characters docker compose config
 JWT_SECRET=replace-with-at-least-32-random-characters docker compose build
+```
+
+Credentialed CORS and CSRF checks:
+
+```bash
+curl -i -X OPTIONS http://localhost:8080/api/login \
+  -H "Origin: http://10.20.7.149:8080" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: Content-Type,X-CSRF-Token"
+```
+
+Expected headers include:
+
+```text
+Access-Control-Allow-Origin: http://10.20.7.149:8080
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Headers: Content-Type,X-CSRF-Token,Authorization
+```
+
+```bash
+curl -i -c /tmp/airi-cookies.txt http://localhost:8080/api/csrf-token
+csrf=$(node -e "const fs=require('fs'); const line=fs.readFileSync('/tmp/airi-cookies.txt','utf8').split('\n').find(l=>l.includes('tucn_csrf')); console.log(line.split(/\\s+/).pop())")
+curl -i -b /tmp/airi-cookies.txt -c /tmp/airi-cookies.txt \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $csrf" \
+  -d '{"email":"AIRI@campus.utcluj.ro","password":"<admin-password>","role":"admin"}' \
+  http://localhost:8080/api/login
+curl -i -b /tmp/airi-cookies.txt http://localhost:8080/api/me
 ```
 
 Manual flow:
@@ -218,7 +267,7 @@ Manual flow:
 - Keep the object storage bucket private.
 - Back up both SQLite and object storage volumes before deployment changes.
 - Serve only over HTTPS with `NODE_ENV=production`.
-- Set `CORS_ORIGIN` to the exact frontend origin.
+- Set `CORS_ORIGIN` to the exact allowed frontend origin list, comma-separated when multiple deployment/test origins are needed.
 - Set `COOKIE_SAME_SITE=strict` if cross-site navigation requirements allow it.
 - Rotate default seed passwords before exposure.
 - Run database backups for the SQLite volume.

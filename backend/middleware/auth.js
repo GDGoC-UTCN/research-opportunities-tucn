@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { get } = require('../db');
 const { httpError, asyncHandler } = require('../utils/errors');
 const { cleanUser } = require('../utils/validation');
+const { baseCookieOptions } = require('../utils/cookies');
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'tucn_auth';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -16,13 +17,10 @@ function getJwtSecret() {
 }
 
 function cookieOptions() {
-  const sameSite = process.env.COOKIE_SAME_SITE === 'strict' ? 'strict' : 'lax';
   return {
+    ...baseCookieOptions(),
     httpOnly: true,
-    sameSite,
-    secure: process.env.NODE_ENV === 'production',
     maxAge: COOKIE_MAX_AGE_MS,
-    path: '/',
   };
 }
 

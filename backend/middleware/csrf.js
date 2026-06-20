@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { httpError } = require('../utils/errors');
+const { baseCookieOptions } = require('../utils/cookies');
 
 const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME || 'tucn_csrf';
 const CSRF_HEADER_NAME = 'x-csrf-token';
@@ -14,12 +15,9 @@ function getSecret() {
 }
 
 function csrfCookieOptions() {
-  const sameSite = process.env.COOKIE_SAME_SITE === 'strict' ? 'strict' : 'lax';
   return {
+    ...baseCookieOptions(),
     httpOnly: false,
-    sameSite,
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
     maxAge: Number(process.env.CSRF_COOKIE_MAX_AGE_MS || 2 * 60 * 60 * 1000),
   };
 }

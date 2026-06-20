@@ -20,13 +20,16 @@ services:
       - DB_PATH=/data/data.sqlite
       - NODE_ENV=${NODE_ENV:-development}
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env or your shell}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8080}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://ro.utcluj.ro,http://10.20.7.149:8080,http://localhost:8080,http://localhost:3000}
       - AUTH_COOKIE_NAME=${AUTH_COOKIE_NAME:-tucn_auth}
       - CSRF_COOKIE_NAME=${CSRF_COOKIE_NAME:-tucn_csrf}
       - CSRF_SECRET=${CSRF_SECRET:-}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
       - COOKIE_MAX_AGE_MS=${COOKIE_MAX_AGE_MS:-604800000}
       - CSRF_COOKIE_MAX_AGE_MS=${CSRF_COOKIE_MAX_AGE_MS:-7200000}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - COOKIE_SAME_SITE=${COOKIE_SAME_SITE:-lax}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-}
       - BODY_LIMIT=${BODY_LIMIT:-16mb}
       - STORAGE_PROVIDER=${STORAGE_PROVIDER:-s3}
       - S3_ENDPOINT=${S3_ENDPOINT:-http://minio:9000}
@@ -84,7 +87,7 @@ services:
       - DB_PATH=/data/data.sqlite
       - NODE_ENV=${NODE_ENV:-development}
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env or your shell}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8080}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://ro.utcluj.ro,http://10.20.7.149:8080,http://localhost:8080,http://localhost:3000}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-AIRI@campus.utcluj.ro}
       - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-}
       - ADMIN_NAME=${ADMIN_NAME:-AIRi Admin}

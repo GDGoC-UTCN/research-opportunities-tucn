@@ -22,18 +22,36 @@ requireJwtSecret();
 initDb();
 
 const app = express();
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 const bodyLimit = process.env.BODY_LIMIT || '16mb';
+const allowedCorsMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+const allowedCorsHeaders = ['Content-Type', 'X-CSRF-Token', 'Authorization'];
+
+function corsOrigin(origin, callback) {
+  if (!origin) return callback(null, true);
+  if (corsOrigins.includes(origin)) return callback(null, true);
+
+  const err = new Error('Origin not allowed by CORS');
+  err.status = 403;
+  return callback(err);
+}
+
+const corsOptions = {
+  origin: corsOrigin,
+  credentials: true,
+  methods: allowedCorsMethods,
+  allowedHeaders: allowedCorsHeaders,
+  exposedHeaders: ['Content-Disposition'],
+  optionsSuccessStatus: 204,
+};
 
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || origin === corsOrigin) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-}));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: bodyLimit }));
 app.use(express.urlencoded({ limit: bodyLimit, extended: true }));
