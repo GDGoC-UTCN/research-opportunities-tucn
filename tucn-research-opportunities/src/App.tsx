@@ -434,37 +434,22 @@ export default function App() {
         <ApplicationModal
           opportunity={selectedOpportunity}
           onSubmit={async (message, answers, cvFile, transcriptFile) => {
-            const newApp: Application = {
-              id: Date.now().toString(),
-              opportunityId: selectedOpportunity.id,
-              studentId: currentUser.id,
-              studentName: currentUser.name,
-              message: message,
-              date: new Date().toLocaleDateString(),
-              status: 'pending',
-              answers,
-              cvFile,
-              transcriptFile,
-            };
-            // Persist to backend so professor sees the application
+            const formData = new FormData();
+            formData.append('opportunityId', selectedOpportunity.id);
+            formData.append('message', message);
+            formData.append('answers', JSON.stringify(answers));
+            if (cvFile?.file) formData.append('cv', cvFile.file);
+            if (transcriptFile?.file) formData.append('transcript', transcriptFile.file);
+
             const res = await apiFetch('/api/applications', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                opportunityId: newApp.opportunityId,
-                message: newApp.message,
-                answers: newApp.answers,
-                cvFile: newApp.cvFile,
-                transcriptFile: newApp.transcriptFile,
-              }),
+              body: formData,
             });
             if (!res.ok) {
               const errJson = await res.json().catch(() => ({}));
               throw new Error(errJson.error || `Server error ${res.status}`);
             }
-            const json = await res.json().catch(() => ({}));
-            if (json.id) newApp.id = String(json.id);
-            setApplications(prev => [...prev, newApp]);
+            await loadApplications(currentUser);
             setApplyModalOpen(false);
           }}
           onClose={() => setApplyModalOpen(false)}

@@ -2,7 +2,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ROLES = new Set(['student', 'professor', 'admin']);
 const STATUSES = new Set(['accepted', 'rejected']);
 const MAX_TEXT = 5000;
-const MAX_FILE_SIZE = Number(process.env.MAX_PDF_BYTES || 5 * 1024 * 1024);
 
 function asString(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -60,22 +59,13 @@ function validateOpportunity(body) {
   return null;
 }
 
-function validatePdfFile(file, label) {
-  if (!file) return null;
-  if (typeof file !== 'object') return `${label} must be an object`;
-  if (asString(file.name).length > 180) return `${label} name is too long`;
-  if (file.type !== 'application/pdf') return `${label} must be a PDF`;
-  if (!Number.isFinite(file.size) || file.size <= 0 || file.size > MAX_FILE_SIZE) return `${label} must be between 1 byte and ${MAX_FILE_SIZE} bytes`;
-  if (typeof file.dataUrl !== 'string' || !file.dataUrl.startsWith('data:application/pdf;base64,')) return `${label} content must be a PDF data URL`;
-  return null;
-}
-
 function validateApplication(body) {
   if (!asString(body.opportunityId)) return 'Opportunity is required';
   const message = asString(body.message);
   if (!message || message.length > MAX_TEXT) return `Message is required and must be under ${MAX_TEXT} characters`;
-  if (body.answers !== undefined && (!Array.isArray(body.answers) || body.answers.length > 50)) return 'Answers must be an array with at most 50 items';
-  return validatePdfFile(body.cvFile, 'CV file') || validatePdfFile(body.transcriptFile, 'Transcript file');
+  if (body.answers !== undefined && !Array.isArray(body.answers)) return 'Answers must be a JSON array';
+  if (Array.isArray(body.answers) && body.answers.length > 50) return 'Answers must contain at most 50 items';
+  return null;
 }
 
 function validateStatusUpdate(body) {
@@ -95,5 +85,4 @@ module.exports = {
   validateOpportunity,
   validateApplication,
   validateStatusUpdate,
-  validatePdfFile,
 };

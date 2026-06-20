@@ -38,16 +38,12 @@ function FileUploadField({
       setError('File must be smaller than 5 MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      onChange({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        dataUrl: reader.result as string,
-      });
-    };
-    reader.readAsDataURL(file);
+    onChange({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      file,
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {

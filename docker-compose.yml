@@ -28,9 +28,46 @@ services:
       - COOKIE_MAX_AGE_MS=${COOKIE_MAX_AGE_MS:-604800000}
       - CSRF_COOKIE_MAX_AGE_MS=${CSRF_COOKIE_MAX_AGE_MS:-7200000}
       - BODY_LIMIT=${BODY_LIMIT:-16mb}
-      - MAX_PDF_BYTES=${MAX_PDF_BYTES:-5242880}
+      - STORAGE_PROVIDER=${STORAGE_PROVIDER:-s3}
+      - S3_ENDPOINT=${S3_ENDPOINT:-http://minio:9000}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_BUCKET=${S3_BUCKET:-tucn-research-uploads}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-minioadmin}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-minioadmin123}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-5}
     volumes:
       - tucn_api_data:/data
+    depends_on:
+      - minio
+    networks:
+      - tucn-net
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - '9001:9001'
+    volumes:
+      - tucn_minio_data:/data
+    networks:
+      - tucn-net
+  createbuckets:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do sleep 2; done;
+      /usr/bin/mc mb --ignore-existing local/$${S3_BUCKET};
+      /usr/bin/mc anonymous set none local/$${S3_BUCKET};
+      "
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - S3_BUCKET=${S3_BUCKET:-tucn-research-uploads}
     networks:
       - tucn-net
   migrations:
@@ -55,6 +92,7 @@ services:
 
 volumes:
   tucn_api_data:
+  tucn_minio_data:
 
 networks:
   tucn-net:

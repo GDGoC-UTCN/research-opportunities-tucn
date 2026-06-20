@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle2, Clock, XCircle, BookOpen, FileText } from 'lucide-react';
 import { Opportunity, Application, User } from '../../types';
+import { downloadApplicationFile } from '../../api';
 
 interface Props {
   currentUser: User;
@@ -102,24 +103,46 @@ export default function StudentApplications({ currentUser, opportunities, applic
                     <div className="flex flex-wrap gap-2 pt-4 border-t border-dashed border-gray-100">
                       <p className="w-full text-[10px] font-bold uppercase tracking-widest text-gray-400">Uploaded Documents</p>
                       {app.cvFile && (
-                        <a
-                          href={app.cvFile.dataUrl}
-                          download={app.cvFile.name}
+                        app.cvFile.dataUrl ? (
+                          <a
+                            href={app.cvFile.dataUrl}
+                            download={app.cvFile.name}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
+                          >
+                            <FileText size={12} />
+                            CV — {app.cvFile.name}
+                          </a>
+                        ) : (
+                        <button
+                          type="button"
+                          onClick={() => downloadApplicationFile(app.id, 'cv', app.cvFile?.name || 'cv.pdf').catch(err => alert(err.message))}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
                         >
                           <FileText size={12} />
                           CV — {app.cvFile.name}
-                        </a>
+                        </button>
+                        )
                       )}
                       {app.transcriptFile && (
-                        <a
-                          href={app.transcriptFile.dataUrl}
-                          download={app.transcriptFile.name}
+                        app.transcriptFile.dataUrl ? (
+                          <a
+                            href={app.transcriptFile.dataUrl}
+                            download={app.transcriptFile.name}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
+                          >
+                            <FileText size={12} />
+                            Transcript — {app.transcriptFile.name}
+                          </a>
+                        ) : (
+                        <button
+                          type="button"
+                          onClick={() => downloadApplicationFile(app.id, 'transcript', app.transcriptFile?.name || 'transcript.pdf').catch(err => alert(err.message))}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
                         >
                           <FileText size={12} />
                           Transcript — {app.transcriptFile.name}
-                        </a>
+                        </button>
+                        )
                       )}
                     </div>
                   )}

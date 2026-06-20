@@ -3,6 +3,10 @@ const { all, run, get } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asString, isEmail } = require('../utils/validation');
+const {
+  deleteApplicationObjectsForProfessor,
+  deleteApplicationObjectsForStudent,
+} = require('../utils/fileCleanup');
 
 const router = express.Router();
 
@@ -61,6 +65,7 @@ router.delete('/admin/users/:key', asyncHandler(async (req, res) => {
   try {
     await run('BEGIN');
     if (target.role === 'professor') {
+      await deleteApplicationObjectsForProfessor(String(target.id));
       await run(
         `DELETE FROM applications
          WHERE opportunity_id IN (SELECT id FROM opportunities WHERE author_id = ?)`,
@@ -68,6 +73,7 @@ router.delete('/admin/users/:key', asyncHandler(async (req, res) => {
       );
       await run('DELETE FROM opportunities WHERE author_id = ?', [String(target.id)]);
     } else if (target.role === 'student') {
+      await deleteApplicationObjectsForStudent(String(target.id));
       await run('DELETE FROM applications WHERE student_id = ?', [String(target.id)]);
     }
     await run('DELETE FROM users WHERE id = ?', [target.id]);
