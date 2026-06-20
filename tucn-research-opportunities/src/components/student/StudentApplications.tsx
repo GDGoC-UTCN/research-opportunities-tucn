@@ -153,11 +153,3 @@ export default function StudentApplications({ currentUser, opportunities, applic
     </motion.div>
   );
 }
-
-interface Props {
-  currentUser: User;
-  opportunities: Opportunity[];
-  applications: Application[];
-  setView: (view: 'list' | 'detail') => void;
-  setSelectedOpportunity: React.Dispatch<React.SetStateAction<Opportunity | null>>;
-}

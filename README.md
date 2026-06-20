@@ -1,137 +1,115 @@
-# UTCN Research Opportunities Portal 🎓
+# UTCN Research Opportunities Portal
 
-A modern, full-featured web platform connecting students and professors at the **Technical University of Cluj-Napoca (UTCN)**. Students can discover research projects, upload application documents, and track their applications. Professors manage listings, set document requirements, and review applicants. Admins oversee platform users and content.
+React/Vite/TypeScript frontend plus an Express + SQLite backend for UTCN research opportunities. Students browse and apply to professor-posted projects, professors manage their own opportunities and applicants, and admins approve professor accounts and manage platform data.
 
-🌐 **Live at: [https://ro.utcluj.ro/](https://ro.utcluj.ro/)**
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Live Demo & Test Accounts](#live-demo--test-accounts)
-- [Current Features](#current-features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Local Development](#local-development)
-- [Docker Deployment](#docker-deployment)
-- [Roadmap](#roadmap)
-- [Security Notes](#security-notes)
-- [Contributing](#contributing)
-
----
-
-## Overview
-
-The UTCN Research Opportunities Portal provides:
-
-- **Students** — browse, filter, and apply for professor-posted research projects with optional CV/Transcript uploads; track application status and professor replies.
-- **Professors** — create and manage research listings, set per-opportunity document requirements, review applicants, and send reply messages.
-- **Admins** — approve professor accounts, manage all users (professors & students), and remove posts or accounts as needed.
-
----
-
-## Live Demo & Test Accounts
-
-The application is deployed and running at **[https://ro.utcluj.ro/](https://ro.utcluj.ro/)**.
-
-> ⚠️ These are real test accounts on the live server — please do not delete content or change passwords.
-
-| Role | Email | Password | Notes |
-|---|---|---|---|
-| 🧑‍🏫 Professor | `Adrian.Groza@cs.utcluj.ro` | `test` | Has existing posts and applicants |
-| 🎓 Student | `Mozacu.Cl.Stefania@student.utcluj.ro` | `Stefi` | Has submitted applications |
-| 🔐 Admin | `admin@utcn.edu` | `adminpass` | Navigate to [https://ro.utcluj.ro/admin](https://ro.utcluj.ro/admin) |
-
-> **Admin access** is intentionally hidden from the main login page. Go to `/admin` directly.
-
----
-
-## Current Features
-
-### 🎓 Students
-- **Browse & filter** research opportunities — search by keyword, filter by tags (AI, Robotics, NLP, etc.)
-- **Detailed view** — full project abstract, requirements, stipend info, deadline, and duration
-- **Apply** — cover letter + any custom application questions set by the professor
-- **CV & file uploads** — attach a PDF CV and/or Transcript of Notes when required
-- **My Applications** — track all submissions with live status (pending / accepted / rejected), professor reply messages, and links to uploaded files
-- **Role-first login** — clean two-step flow: pick role → sign in or sign up
-
-### 🧑‍🏫 Professors
-- **Post opportunities** — full form with title, description, abstract, tags, duration, stipend, deadline, and custom questions
-- **Require documents** — per-opportunity toggles to make CV and/or Transcript mandatory for applicants
-- **Dashboard** — view all own listings; expand any to see the full applicant list with submitted answers
-- **Review applications** — accept or reject applicants and send a personalised reply message
-- **Download documents** — download applicant-uploaded CV and Transcript PDFs directly from the dashboard
-- **Account approval flow** — new professor accounts require admin approval before they can post or log in
-
-### 🔐 Admin
-- **Approve professors** — review pending sign-up requests and approve them so they can access the platform
-- **View all users** — separate sections for professors and students with account details
-- **Delete accounts** — remove any professor or student account from the platform
-- **Delete posts** — remove any opportunity posted on the platform
-- **Hidden access** — admin panel is only accessible at `/admin`, not linked from the main UI
-
----
-
-## Tech Stack
+## Architecture
 
 | Layer | Technology |
 |---|---|
-| Frontend framework | React 19 + TypeScript 5.8 |
-| Build tool | Vite 6 |
-| Styling | Tailwind CSS v4 (UTCN colour tokens) |
-| Animations | motion/react (Framer Motion) |
-| Icons | Lucide React |
-| Backend | Node.js / Express |
-| Database | SQLite (via `sqlite3`, persisted on Docker volume) |
-| Migrations | Knex + raw SQL fallback (`migrations/000_init_users.sql`) |
-| Auth | bcryptjs password hashing, session state in React |
-| Containerisation | Docker + docker-compose (nginx frontend, Node API, migrations service) |
-| Reverse proxy | nginx (serves frontend, proxies `/api/` to backend) |
+| Frontend | React 19, Vite, TypeScript, Tailwind CSS |
+| Backend | Express, SQLite, bcryptjs |
+| Auth | JWT in `HttpOnly` cookie, restored with `/api/me` |
+| CSRF | Signed double-submit token from `/api/csrf-token` |
+| Authorization | Server-side RBAC plus ownership checks |
+| Deployment | Docker Compose, nginx frontend proxy, persistent SQLite volume |
 
----
+The frontend never stores JWTs, passwords, password hashes, roles, approval flags, or user sessions in `localStorage`.
 
-## Project Structure
+## Auth, Cookies, And CSRF
 
+Login calls `POST /api/login` with email, password, and the selected role. The backend verifies the password, rejects role mismatches before issuing a cookie, rejects unapproved professors, signs a JWT with `JWT_SECRET`, and sets it in an `HttpOnly` cookie.
+
+Cookie behavior:
+
+- `httpOnly: true`
+- `sameSite: "lax"` by default, or `"strict"` when `COOKIE_SAME_SITE=strict`
+- `secure: true` when `NODE_ENV=production`
+- default expiration: 7 days
+
+Session restore calls `GET /api/me`. Logout calls `POST /api/logout` and clears the auth cookie.
+
+CSRF behavior:
+
+- `GET /api/csrf-token` issues a signed token in JSON and a readable same-site cookie.
+- All `POST`, `PATCH`, and `DELETE` requests must send `X-CSRF-Token`.
+- `GET`, `HEAD`, `OPTIONS`, and health checks do not require CSRF.
+- The frontend `apiFetch` helper fetches and sends the token automatically.
+
+## Backend Middleware
+
+- `requireAuth`: verifies JWT from the auth cookie or `Authorization: Bearer ...`, then loads the current user from SQLite. Deleted users, changed roles, and changed approval status are respected immediately.
+- `requireRole(...roles)`: rejects authenticated users with the wrong role.
+- `requireApprovedProfessor`: requires a current approved professor account.
+- `requireCsrf`: validates signed CSRF token for state-changing routes.
+
+Passwords and password hashes are never returned by the API.
+
+## Endpoint Access
+
+| Method | Path | Access |
+|---|---|---|
+| `GET` | `/api/health` | Public |
+| `GET` | `/api/csrf-token` | Public |
+| `POST` | `/api/signup` | Public, student/professor only, CSRF required |
+| `POST` | `/api/login` | Public, CSRF required |
+| `POST` | `/api/logout` | CSRF required |
+| `GET` | `/api/me` | Authenticated |
+| `GET` | `/api/opportunities` | Public |
+| `POST` | `/api/opportunities` | Approved professor only, CSRF required |
+| `DELETE` | `/api/opportunities/:id` | Owner professor or admin, CSRF required; deletes dependent applications |
+| `GET` | `/api/applications` | Authenticated; scoped by role |
+| `POST` | `/api/applications` | Student only, CSRF required; uses `req.user.id` |
+| `PATCH` | `/api/applications/:id` | Approved owner professor only, CSRF required |
+| `GET` | `/api/admin/users` | Admin only |
+| `GET` | `/api/admin/pending` | Admin only |
+| `POST` | `/api/admin/approve` | Admin only, CSRF required |
+| `DELETE` | `/api/admin/users/:key` | Admin only, CSRF required; cascades dependent data |
+
+Application listing is scoped server-side: students see only their own applications, professors see applications for their own opportunities, and admins see all applications.
+
+## Environment Variables
+
+Copy the examples and set real values:
+
+```bash
+cp .env.example .env
+cp backend/.env.example backend/.env
 ```
-research-opportunities-tucn/
-├── tucn-research-opportunities/        # React/Vite frontend
-│   ├── src/
-│   │   ├── App.tsx                     # Root component, state, all handlers
-│   │   ├── types.ts                    # TypeScript interfaces
-│   │   ├── index.css                   # Global styles / Tailwind directives
-│   │   └── components/
-│   │       ├── common/                 # Header, Footer, LoginView, OpportunityList, OpportunityDetail
-│   │       ├── student/                # ApplicationModal, StudentApplications
-│   │       ├── teacher/                # CreateOpportunity, TeacherDashboard
-│   │       └── admin/                  # AdminDashboard (users + posts management)
-│   ├── nginx.conf                      # nginx config (SPA routing + /api proxy)
-│   ├── Dockerfile                      # Multi-stage: Vite build → nginx:alpine
-│   └── package.json
-├── backend/
-│   ├── index.js                        # Express server (auth + admin endpoints)
-│   ├── migrate.js                      # Migration runner
-│   ├── migrations/
-│   │   └── 000_init_users.sql          # SQL schema (users table)
-│   ├── seeds/
-│   │   └── 01_admin_seed.js            # Seeds the default admin account
-│   ├── Dockerfile                      # node:20-bullseye-slim + tini + sqlite3 CLI
-│   └── .dockerignore
-├── docker-compose.yml                  # Orchestrates frontend, api, migrations services
-├── start.sh                            # One-command deploy script (build + up)
-└── README.md                           # This file
+
+Key variables:
+
+```env
+NODE_ENV=development
+PORT=4000
+DB_PATH=./backend/data.sqlite
+JWT_SECRET=replace-with-at-least-32-random-characters
+CSRF_SECRET=replace-with-at-least-32-random-characters
+CORS_ORIGIN=http://localhost:3000
+AUTH_COOKIE_NAME=tucn_auth
+CSRF_COOKIE_NAME=tucn_csrf
+COOKIE_SAME_SITE=lax
+JWT_EXPIRES_IN=7d
+COOKIE_MAX_AGE_MS=604800000
+CSRF_COOKIE_MAX_AGE_MS=7200000
+BODY_LIMIT=16mb
+MAX_PDF_BYTES=5242880
 ```
 
----
+For production, set `NODE_ENV=production` behind HTTPS so cookies use `secure: true`.
 
 ## Local Development
 
-### Prerequisites
+Backend:
 
-- [Node.js](https://nodejs.org/) ≥ 18 and npm ≥ 9
+```bash
+cd backend
+npm install
+cp .env.example .env
+npm run seed-admin
+npm start
+```
 
-### Frontend only
+Frontend:
 
 ```bash
 cd tucn-research-opportunities
@@ -139,122 +117,63 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). Admin login is available at `/admin`.
 
-### Full stack (frontend + backend + database)
+## Docker
 
-Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
-
-```bash
-# From repo root
-./start.sh
-```
-
-Or manually:
+From the repository root:
 
 ```bash
+cp .env.example .env
+# edit JWT_SECRET and optionally CSRF_SECRET
 docker compose build
-docker compose up -d
+docker compose up
 ```
 
-The app will be available at [http://localhost:8080](http://localhost:8080).
+Open [http://localhost:8080](http://localhost:8080). SQLite persists in the `tucn_api_data` Docker volume. Local Docker defaults to `NODE_ENV=development` so cookies work over plain HTTP; set `NODE_ENV=production` only when serving over HTTPS.
 
-### Backend API endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/signup` | Register a new user (student or professor) |
-| `POST` | `/api/login` | Authenticate and return user object |
-| `GET` | `/api/admin/pending` | List professors awaiting approval |
-| `POST` | `/api/admin/approve` | Approve a professor account |
-| `GET` | `/api/admin/users` | List all users (professors + students) |
-| `DELETE` | `/api/admin/users/:key` | Delete a user by ID or email |
-| `GET` | `/api/health` | Health check |
-
-### Available frontend scripts
+## Verification
 
 ```bash
-npm run dev       # Dev server on port 3000
-npm run build     # Production build → dist/
-npm run preview   # Preview production build locally
-npm run lint      # TypeScript type check (tsc --noEmit)
+cd backend
+npm install
+npm run smoke
+
+cd ../tucn-research-opportunities
+npm run lint
+npm run build
+
+cd ..
+JWT_SECRET=replace-with-at-least-32-random-characters docker compose config
+JWT_SECRET=replace-with-at-least-32-random-characters docker compose build
 ```
 
----
+Manual flow:
 
-## Docker Deployment
+1. Admin logs in at `/admin`.
+2. Student signs up or logs in.
+3. Professor signs up and remains pending.
+4. Admin approves the professor.
+5. Professor logs in after approval and creates an opportunity.
+6. Student applies to the opportunity.
+7. Professor sees only own applications and accepts/rejects one.
+8. A different professor cannot update that application.
+9. Student cannot access admin endpoints or create opportunities.
+10. Logout, then `/api/me` returns unauthenticated.
 
-The production stack is defined in `docker-compose.yml` and consists of three services:
+## Production Checklist
 
-| Service | Image | Role |
-|---|---|---|
-| `frontend` | `tucn-frontend:latest` | nginx serving the built React SPA + reverse proxy to API |
-| `api` | `tucn-api:latest` | Node/Express backend, SQLite on named volume |
-| `migrations` | `tucn-api:latest` | Runs SQL migrations at startup, then exits |
+- Use unique high-entropy `JWT_SECRET` and `CSRF_SECRET`.
+- Serve only over HTTPS with `NODE_ENV=production`.
+- Set `CORS_ORIGIN` to the exact frontend origin.
+- Set `COOKIE_SAME_SITE=strict` if cross-site navigation requirements allow it.
+- Rotate default seed passwords before exposure.
+- Run database backups for the SQLite volume.
+- Put a reverse proxy or platform-level rate limit in front of the API.
+- Review `npm audit` regularly, especially the `sqlite3` transitive toolchain advisories.
 
-The SQLite database is stored on a named Docker volume (`tucn_api_data`) so data persists across container restarts and redeploys.
+## Known Limitations
 
-### One-command deploy
-
-```bash
-./start.sh
-```
-
-This script builds both images and starts all services. The app is served on port `8080`.
-
----
-
-## Roadmap
-
-The following features are planned for future development:
-
-- 🔐 **Improved security** — move to proper server-side sessions or JWT tokens; harden the admin endpoint with stronger credentials and rate limiting
-- 📅 **Interviews component** — professors can schedule interview slots; students can book a time; integrated calendar view
-- 🖼️ **Photo & media uploads** — allow professors to add images or attachments to opportunity listings
-- 💬 **In-app messaging / chat** — real-time or async chat between professors and student applicants
-- 👤 **User profiles** — editable profiles for students (LinkedIn link, profile photo, primary CV) and professors (bio, research areas, lab page)
-- 📝 **Professor feedback & recommendation letters** — structured feedback after project completion; option for professors to generate a recommendation letter for a student
-
----
-
-## Security Notes
-
-The current deployment is functional but has known limitations for a production system:
-
-| # | Issue | Recommendation |
-|---|---|---|
-| 1 | **Plain session state** | Replace React state auth with short-lived JWTs or `HttpOnly` session cookies |
-| 2 | **Admin credentials** | Change default `adminpass` before any public-facing use; add rate limiting on `/api/login` |
-| 3 | **No HTTPS enforcement** | The live deployment sits behind a reverse proxy — ensure HSTS is set |
-| 4 | **File uploads as base64** | Move to a dedicated object store (S3, Azure Blob, Supabase Storage) for production scale |
-| 5 | **No CSRF protection** | Add CSRF tokens to all state-mutating API requests when using cookie sessions |
-| 6 | **No Content-Security-Policy** | Add a strict CSP header to the nginx config |
-| 7 | **No input validation on server** | Add server-side validation for all fields (email format, file type/size, field lengths) |
-| 8 | **No audit logging** | Log auth events (logins, approvals, deletions) server-side for security monitoring |
-
----
-
-## Contributing
-
-1. Fork the repository and create your branch:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-2. Make changes and verify:
-   ```bash
-   cd tucn-research-opportunities
-   npm run lint
-   npm run build
-   ```
-3. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
-   ```
-   feat(student): add calendar view for interview slots
-   fix(admin): handle duplicate email on user delete
-   ```
-4. Open a Pull Request against the active branch on GitHub.
-
----
-
-<div align="center">
-  Built with ❤️ by the <strong>GDGoC UTCN</strong> team · <a href="https://utcluj.ro">utcluj.ro</a>
-</div>
+- PDF uploads are still base64 JSON stored in SQLite. Production should move files to object storage and store metadata in the database.
+- SQLite is retained for now; the DB helper and route boundaries are kept simple so a later PostgreSQL migration is practical.
+- There is no audit log yet for approvals, deletions, or auth events.

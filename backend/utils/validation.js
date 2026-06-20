@@ -1,0 +1,99 @@
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ROLES = new Set(['student', 'professor', 'admin']);
+const STATUSES = new Set(['accepted', 'rejected']);
+const MAX_TEXT = 5000;
+const MAX_FILE_SIZE = Number(process.env.MAX_PDF_BYTES || 5 * 1024 * 1024);
+
+function asString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function isEmail(value) {
+  return EMAIL_RE.test(asString(value));
+}
+
+function cleanUser(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id),
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    department: row.department || undefined,
+    approved: !!row.approved,
+  };
+}
+
+function validateSignup(body) {
+  const name = asString(body.name);
+  const email = asString(body.email).toLowerCase();
+  const password = typeof body.password === 'string' ? body.password : '';
+  const role = asString(body.role);
+  const department = asString(body.department) || null;
+
+  if (!name || name.length > 120) return 'Name is required and must be under 120 characters';
+  if (!isEmail(email) || email.length > 254) return 'A valid email is required';
+  if (password.length < 8 || password.length > 128) return 'Password must be 8-128 characters';
+  if (!ROLES.has(role) || role === 'admin') return 'Public signup is only available for students and professors';
+  if (department && department.length > 160) return 'Department must be under 160 characters';
+  return null;
+}
+
+function validateLogin(body) {
+  const email = asString(body.email).toLowerCase();
+  const password = typeof body.password === 'string' ? body.password : '';
+  const role = asString(body.role);
+  if (!isEmail(email)) return 'A valid email is required';
+  if (!password) return 'Password is required';
+  if (role && !ROLES.has(role)) return 'Invalid role';
+  return null;
+}
+
+function validateOpportunity(body) {
+  const required = ['title', 'description', 'abstract', 'duration', 'stipend'];
+  for (const field of required) {
+    const value = asString(body[field]);
+    if (!value || value.length > MAX_TEXT) return `${field} is required and must be under ${MAX_TEXT} characters`;
+  }
+  if (body.tags !== undefined && (!Array.isArray(body.tags) || body.tags.length > 20)) return 'Tags must be an array with at most 20 items';
+  if (body.applicationFields !== undefined && (!Array.isArray(body.applicationFields) || body.applicationFields.length > 20)) return 'Application fields must be an array with at most 20 items';
+  return null;
+}
+
+function validatePdfFile(file, label) {
+  if (!file) return null;
+  if (typeof file !== 'object') return `${label} must be an object`;
+  if (asString(file.name).length > 180) return `${label} name is too long`;
+  if (file.type !== 'application/pdf') return `${label} must be a PDF`;
+  if (!Number.isFinite(file.size) || file.size <= 0 || file.size > MAX_FILE_SIZE) return `${label} must be between 1 byte and ${MAX_FILE_SIZE} bytes`;
+  if (typeof file.dataUrl !== 'string' || !file.dataUrl.startsWith('data:application/pdf;base64,')) return `${label} content must be a PDF data URL`;
+  return null;
+}
+
+function validateApplication(body) {
+  if (!asString(body.opportunityId)) return 'Opportunity is required';
+  const message = asString(body.message);
+  if (!message || message.length > MAX_TEXT) return `Message is required and must be under ${MAX_TEXT} characters`;
+  if (body.answers !== undefined && (!Array.isArray(body.answers) || body.answers.length > 50)) return 'Answers must be an array with at most 50 items';
+  return validatePdfFile(body.cvFile, 'CV file') || validatePdfFile(body.transcriptFile, 'Transcript file');
+}
+
+function validateStatusUpdate(body) {
+  const status = asString(body.status);
+  const professorReply = asString(body.professorReply);
+  if (!STATUSES.has(status)) return 'Status must be accepted or rejected';
+  if (professorReply.length > MAX_TEXT) return `Professor reply must be under ${MAX_TEXT} characters`;
+  return null;
+}
+
+module.exports = {
+  asString,
+  isEmail,
+  cleanUser,
+  validateSignup,
+  validateLogin,
+  validateOpportunity,
+  validateApplication,
+  validateStatusUpdate,
+  validatePdfFile,
+};
