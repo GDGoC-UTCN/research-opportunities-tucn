@@ -28,6 +28,18 @@ The opportunities dashboard is public:
 - `POST /api/applications` remains student-only and uses the authenticated `req.user.id`; client-sent student identity is ignored.
 - Professor, admin, application-management, file-download, and create-opportunity flows remain protected by backend RBAC.
 
+## Profile Customization
+
+Authenticated users can manage a profile with:
+
+- editable display name, department, and LinkedIn URL;
+- protected profile avatar stored in object storage;
+- protected default CV and transcript PDFs stored in object storage;
+- saved profile documents that students can attach to applications without re-uploading;
+- per-application PDF uploads that can optionally be saved back to the student's profile.
+
+Profile storage uses the `user_profiles` table. SQLite stores only safe metadata and object keys. Object storage remains private, and downloads go through authenticated backend endpoints.
+
 ## PDF Upload Storage
 
 New CV/transcript uploads use `multipart/form-data`. PDFs are validated on the backend and stored in object storage; SQLite stores only metadata and opaque storage keys.
@@ -38,6 +50,7 @@ Storage behavior:
 - Local Docker uses MinIO at `http://minio:9000`; the console is exposed at [http://localhost:9001](http://localhost:9001).
 - Backend tests use `STORAGE_PROVIDER=local` with a temporary filesystem directory.
 - Object keys are random and scoped by application ID, for example `applications/<applicationId>/<uuid>-cv.pdf`.
+- Profile object keys are scoped by user ID, for example `profiles/<userId>/cv/<uuid>.pdf`.
 - S3/MinIO credentials are backend-only and never exposed to the frontend.
 - Buckets must remain private; downloads go through backend authorization.
 
@@ -95,6 +108,15 @@ Passwords and password hashes are never returned by the API.
 | `PATCH` | `/api/applications/:id` | Approved owner professor only, CSRF required |
 | `GET` | `/api/applications/:id/files/cv` | Student owner, owner professor, or admin |
 | `GET` | `/api/applications/:id/files/transcript` | Student owner, owner professor, or admin |
+| `GET` | `/api/profile` | Authenticated current user |
+| `PATCH` | `/api/profile` | Authenticated current user, CSRF required |
+| `POST` | `/api/profile/avatar` | Authenticated current user, CSRF required |
+| `GET` | `/api/profile/avatar` | Authenticated current user |
+| `POST` | `/api/profile/documents` | Authenticated current user, CSRF required |
+| `GET` | `/api/profile/documents/cv` | Authenticated current user |
+| `GET` | `/api/profile/documents/transcript` | Authenticated current user |
+| `DELETE` | `/api/profile/documents/cv` | Authenticated current user, CSRF required |
+| `DELETE` | `/api/profile/documents/transcript` | Authenticated current user, CSRF required |
 | `GET` | `/api/admin/users` | Admin only |
 | `GET` | `/api/admin/pending` | Admin only |
 | `POST` | `/api/admin/approve` | Admin only, CSRF required |
@@ -130,6 +152,7 @@ COOKIE_MAX_AGE_MS=604800000
 CSRF_COOKIE_MAX_AGE_MS=7200000
 BODY_LIMIT=16mb
 MAX_UPLOAD_MB=5
+PROFILE_IMAGE_MAX_MB=2
 STORAGE_PROVIDER=s3
 S3_ENDPOINT=http://minio:9000
 S3_REGION=us-east-1
@@ -250,14 +273,16 @@ Manual flow:
 1. Unauthenticated visitor opens `/` and browses opportunities.
 2. Unauthenticated visitor opens an opportunity detail and clicks Apply, then is redirected to sign in.
 3. Student signs up or logs in and applies to the selected opportunity.
-4. Admin logs in at `/admin` with `AIRI@campus.utcluj.ro`.
-5. Professor signs up and remains pending.
-6. Admin approves the professor.
-7. Professor logs in after approval and creates an opportunity.
-8. Professor sees only own applications and accepts/rejects one.
-9. A different professor cannot update that application.
-10. Student cannot access admin endpoints or create opportunities.
-11. Logout, then `/api/me` returns unauthenticated while public browsing still works.
+4. Student opens My Profile, adds LinkedIn URL, uploads avatar, CV, and transcript.
+5. Student applies using saved profile CV/transcript or uploads per-application documents.
+6. Admin logs in at `/admin` with `AIRI@campus.utcluj.ro`.
+7. Professor signs up and remains pending.
+8. Admin approves the professor.
+9. Professor logs in after approval and creates an opportunity.
+10. Professor sees only own applications and accepts/rejects one.
+11. A different professor cannot update that application.
+12. Student cannot access admin endpoints or create opportunities.
+13. Logout, then `/api/me` returns unauthenticated while public browsing still works.
 
 ## Production Checklist
 
@@ -279,3 +304,4 @@ Manual flow:
 - Legacy PDF uploads may still exist as base64 JSON in old SQLite rows; migrate those rows to object storage later if desired.
 - SQLite is retained for now; the DB helper and route boundaries are kept simple so a later PostgreSQL migration is practical.
 - There is no audit log yet for approvals, deletions, or auth events.
+- Profile avatar access is authenticated and current-user scoped; public profile/avatar discovery is intentionally not implemented yet.

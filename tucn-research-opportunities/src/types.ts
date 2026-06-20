@@ -42,6 +42,14 @@ export interface User {
   email?: string;
 }
 
+export interface UserProfile {
+  user: User;
+  linkedinUrl: string;
+  avatar?: UploadedFile;
+  cvFile?: UploadedFile;
+  transcriptFile?: UploadedFile;
+}
+
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
 
 export interface ApplicationAnswer {
@@ -58,6 +66,13 @@ export interface UploadedFile {
   downloadUrl?: string;
   dataUrl?: string;   // legacy base64 data URL for older rows only
   legacy?: boolean;
+}
+
+export interface ApplicationDocumentOptions {
+  useProfileCv: boolean;
+  useProfileTranscript: boolean;
+  saveUploadedCvToProfile: boolean;
+  saveUploadedTranscriptToProfile: boolean;
 }
 
 export interface Application {

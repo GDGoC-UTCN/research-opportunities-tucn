@@ -52,7 +52,11 @@ function filenameFromContentDisposition(header: string | null, fallback: string)
 }
 
 export async function downloadApplicationFile(applicationId: string, kind: 'cv' | 'transcript', fallbackName: string) {
-  const response = await apiFetch(`/api/applications/${encodeURIComponent(applicationId)}/files/${kind}`);
+  return downloadProtectedFile(`/api/applications/${encodeURIComponent(applicationId)}/files/${kind}`, fallbackName);
+}
+
+export async function downloadProtectedFile(path: string, fallbackName: string) {
+  const response = await apiFetch(path);
   if (!response.ok) {
     const json = await response.json().catch(() => ({}));
     throw new Error(json.error || 'Download failed');

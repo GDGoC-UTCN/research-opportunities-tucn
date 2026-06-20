@@ -11,6 +11,7 @@ const DB_PATH = path.join(os.tmpdir(), `tucn-smoke-${process.pid}.sqlite`);
 const JWT_SECRET = process.env.JWT_SECRET || 'abcdefghijklmnopqrstuvwxyz1234567890';
 const LOCAL_STORAGE_DIR = path.join(os.tmpdir(), `tucn-smoke-uploads-${process.pid}`);
 const validPdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n');
+const validPng = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
 
 class CookieJar {
   constructor() {
@@ -163,6 +164,7 @@ async function main() {
       STORAGE_PROVIDER: 'local',
       LOCAL_STORAGE_DIR,
       MAX_UPLOAD_MB: '1',
+      PROFILE_IMAGE_MAX_MB: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -248,12 +250,59 @@ async function main() {
     assert(result.response.status === 200 && result.json.user.role === 'student', '/me should restore student');
     const studentId = result.json.user.id;
 
+    result = await request('GET', '/api/profile', student);
+    assert(result.response.status === 200 && result.json.profile.user.id === studentId, 'student can fetch own profile');
+
+    result = await request('PATCH', '/api/profile', student, {
+      name: 'Smoke Student Updated',
+      department: 'Computer Science',
+      linkedinUrl: 'https://www.linkedin.com/in/smoke-student',
+    });
+    assert(result.response.status === 200 && result.json.profile.linkedinUrl.includes('linkedin.com'), 'student can update profile');
+
+    result = await request('PATCH', '/api/profile', student, {
+      linkedinUrl: 'https://example.com/not-linkedin',
+    });
+    assert(result.response.status === 400, 'invalid LinkedIn URL should be rejected');
+
+    result = await multipartRequest('/api/profile/documents', student, {}, {
+      cv: { name: 'bad.txt', type: 'text/plain', buffer: Buffer.from('not a pdf') },
+    });
+    assert(result.response.status === 400, 'non-PDF profile document should be rejected');
+
+    result = await multipartRequest('/api/profile/documents', student, {}, {
+      cv: { name: 'large.pdf', type: 'application/pdf', buffer: Buffer.concat([Buffer.from('%PDF'), Buffer.alloc(1024 * 1024 + 1)]) },
+    });
+    assert(result.response.status === 400, 'oversized profile document should be rejected');
+
+    result = await multipartRequest('/api/profile/documents', student, {}, {
+      cv: { name: 'profile-cv.pdf', type: 'application/pdf', buffer: validPdf },
+      transcript: { name: 'profile-transcript.pdf', type: 'application/pdf', buffer: validPdf },
+    });
+    assert(result.response.status === 201 && result.json.profile.cvFile && result.json.profile.transcriptFile, 'student can upload profile CV and transcript');
+
+    result = await multipartRequest('/api/profile/avatar', student, {}, {
+      avatar: { name: 'avatar.txt', type: 'text/plain', buffer: Buffer.from('bad') },
+    });
+    assert(result.response.status === 400, 'invalid avatar should be rejected');
+
+    result = await multipartRequest('/api/profile/avatar', student, {}, {
+      avatar: { name: 'avatar.png', type: 'image/png', buffer: validPng },
+    });
+    assert(result.response.status === 201 && result.json.profile.avatar, 'student can upload avatar image');
+
+    let profileFileResult = await download('/api/profile/documents/cv', student);
+    assert(profileFileResult.response.status === 200 && profileFileResult.buffer.subarray(0, 4).toString() === '%PDF', 'student can download own profile CV');
+
     await request('POST', '/api/signup', otherStudent, {
       name: 'Other Student',
       email: 'student2@example.com',
       password: 'studentpass123',
       role: 'student',
     });
+
+    profileFileResult = await download('/api/profile/documents/cv', otherStudent);
+    assert(profileFileResult.response.status !== 200, 'other user cannot download student profile CV');
 
     result = await request('POST', '/api/signup', pendingProfessor, {
       name: 'Pending Professor',
@@ -351,6 +400,19 @@ async function main() {
     assert(result.response.status === 201, 'professor should create opportunity requiring CV');
     const requiredCvOpportunityId = result.json.id;
 
+    result = await request('POST', '/api/opportunities', professor, {
+      title: 'Smoke Opportunity With Alternate CV',
+      description: 'Short description',
+      abstract: 'Research abstract',
+      duration: '1 month',
+      stipend: 'None',
+      tags: ['AI'],
+      applicationFields: [],
+      requireCv: true,
+    });
+    assert(result.response.status === 201, 'professor should create second CV opportunity');
+    const uploadedCvOpportunityId = result.json.id;
+
     result = await multipartRequest('/api/applications', student, {
       opportunityId,
       studentId: '999',
@@ -395,17 +457,28 @@ async function main() {
 
     result = await multipartRequest('/api/applications', student, {
       opportunityId: requiredCvOpportunityId,
-      message: 'Please consider my PDF',
+      message: 'Please consider my saved profile CV',
       answers: JSON.stringify([]),
+      useProfileCv: 'true',
+    });
+    assert(result.response.status === 201, 'student should apply with profile CV');
+    const profileFileApplicationId = result.json.id;
+
+    result = await multipartRequest('/api/applications', student, {
+      opportunityId: uploadedCvOpportunityId,
+      message: 'Please consider my uploaded PDF',
+      answers: JSON.stringify([]),
+      saveUploadedCvToProfile: 'true',
     }, {
       cv: { name: 'cv.pdf', type: 'application/pdf', buffer: validPdf },
     });
-    assert(result.response.status === 201, 'student should apply with valid PDF');
+    assert(result.response.status === 201, 'student should apply with uploaded CV and save it to profile');
     const fileApplicationId = result.json.id;
 
     result = await request('GET', '/api/applications', student);
     assert(result.response.status === 200, 'student should list own applications');
-    assert(result.json.applications[0].studentId === studentId && result.json.applications[0].studentName === 'Smoke Student', 'application should use authenticated student identity');
+    assert(result.json.applications[0].studentId === studentId && result.json.applications[0].studentName === 'Smoke Student Updated', 'application should use authenticated student identity');
+    assert(result.json.applications.some(app => app.id === profileFileApplicationId && app.cvFile && !app.cvFile.dataUrl), 'profile CV application should return file metadata without base64 data');
     assert(result.json.applications.some(app => app.id === fileApplicationId && app.cvFile && !app.cvFile.dataUrl), 'new application should return file metadata without base64 data');
 
     await request('POST', '/api/signup', otherProfessor, {
@@ -455,6 +528,7 @@ async function main() {
 
     await request('DELETE', `/api/opportunities/${opportunityId}`, admin);
     await request('DELETE', `/api/opportunities/${requiredCvOpportunityId}`, admin);
+    await request('DELETE', `/api/opportunities/${uploadedCvOpportunityId}`, admin);
     result = await request('GET', '/api/applications', admin);
     assert(result.response.status === 200, 'admin can list applications after post deletion');
     assert(!result.json.applications.some(app => app.id === applicationId), 'admin post deletion should delete dependent applications');

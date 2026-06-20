@@ -86,7 +86,15 @@ function parseAnswers(raw) {
 }
 
 function rejectUnexpectedFields(body) {
-  const allowed = new Set(['opportunityId', 'message', 'answers']);
+  const allowed = new Set([
+    'opportunityId',
+    'message',
+    'answers',
+    'useProfileCv',
+    'useProfileTranscript',
+    'saveUploadedCvToProfile',
+    'saveUploadedTranscriptToProfile',
+  ]);
   for (const key of Object.keys(body || {})) {
     if (!allowed.has(key)) throw httpError(400, `Unexpected field: ${key}`);
   }
@@ -139,6 +147,76 @@ async function uploadApplicationFile(applicationId, file, kind) {
     size: file.size,
     type: 'application/pdf',
   };
+}
+
+async function uploadProfileFile(userId, file, kind) {
+  if (!file) return null;
+  const filename = sanitizeFilename(file.originalname);
+  const key = `profiles/${userId}/${kind}/${crypto.randomUUID()}.pdf`;
+  await putObject({
+    key,
+    body: file.buffer,
+    contentType: 'application/pdf',
+  });
+  return {
+    key,
+    name: filename,
+    size: file.size,
+    type: 'application/pdf',
+  };
+}
+
+function fieldIsTrue(value) {
+  return value === true || value === 'true' || value === '1';
+}
+
+async function ensureProfile(userId) {
+  await run(
+    `INSERT INTO user_profiles (user_id, created_at, updated_at)
+     VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     ON CONFLICT(user_id) DO NOTHING`,
+    [String(userId)]
+  );
+}
+
+async function objectReferencedByApplication(key) {
+  if (!key) return false;
+  const row = await get(
+    `SELECT id FROM applications
+     WHERE cv_file_key = ? OR transcript_file_key = ?
+     LIMIT 1`,
+    [key, key]
+  );
+  return !!row;
+}
+
+async function deleteIfUnreferenced(key) {
+  if (!key) return;
+  if (await objectReferencedByApplication(key)) return;
+  await deleteObject(key).catch(() => {});
+}
+
+function profileFileMeta(profile, kind) {
+  const prefix = kind === 'cv' ? 'cv_file' : 'transcript_file';
+  if (!profile?.[`${prefix}_key`]) return null;
+  return {
+    key: profile[`${prefix}_key`],
+    name: profile[`${prefix}_name`],
+    size: profile[`${prefix}_size`],
+    type: profile[`${prefix}_type`] || 'application/pdf',
+  };
+}
+
+async function saveProfileDocument(userId, kind, meta, previousKey) {
+  await ensureProfile(userId);
+  const prefix = kind === 'cv' ? 'cv_file' : 'transcript_file';
+  await run(
+    `UPDATE user_profiles
+     SET ${prefix}_key = ?, ${prefix}_name = ?, ${prefix}_size = ?, ${prefix}_type = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?`,
+    [meta.key, meta.name, meta.size, meta.type, String(userId)]
+  );
+  await deleteIfUnreferenced(previousKey);
 }
 
 function contentDisposition(filename) {
@@ -200,10 +278,24 @@ router.post('/applications', requireAuth, requireRole('student'), applicationUpl
   if (!opportunity) throw httpError(404, 'Opportunity not found');
   const cvFile = req.files?.cv?.[0];
   const transcriptFile = req.files?.transcript?.[0];
-  if (opportunity.require_cv && !cvFile) throw httpError(400, 'CV file is required');
-  if (opportunity.require_transcript && !transcriptFile) throw httpError(400, 'Transcript file is required');
+  const useProfileCv = fieldIsTrue(req.body.useProfileCv);
+  const useProfileTranscript = fieldIsTrue(req.body.useProfileTranscript);
+  const saveUploadedCvToProfile = fieldIsTrue(req.body.saveUploadedCvToProfile);
+  const saveUploadedTranscriptToProfile = fieldIsTrue(req.body.saveUploadedTranscriptToProfile);
+  if (useProfileCv && cvFile) throw httpError(400, 'Choose either saved profile CV or uploaded CV, not both');
+  if (useProfileTranscript && transcriptFile) throw httpError(400, 'Choose either saved profile transcript or uploaded transcript, not both');
+  if (saveUploadedCvToProfile && !cvFile) throw httpError(400, 'Upload a CV before saving it to profile');
+  if (saveUploadedTranscriptToProfile && !transcriptFile) throw httpError(400, 'Upload a transcript before saving it to profile');
   const fileError = validatePdfUpload(cvFile, 'CV file') || validatePdfUpload(transcriptFile, 'Transcript file');
   if (fileError) throw httpError(400, fileError);
+
+  const profile = await get('SELECT * FROM user_profiles WHERE user_id = ?', [String(req.user.id)]);
+  const profileCvMeta = useProfileCv ? profileFileMeta(profile, 'cv') : null;
+  const profileTranscriptMeta = useProfileTranscript ? profileFileMeta(profile, 'transcript') : null;
+  if (useProfileCv && !profileCvMeta) throw httpError(400, 'No saved profile CV is available');
+  if (useProfileTranscript && !profileTranscriptMeta) throw httpError(400, 'No saved profile transcript is available');
+  if (opportunity.require_cv && !cvFile && !profileCvMeta) throw httpError(400, 'CV file is required');
+  if (opportunity.require_transcript && !transcriptFile && !profileTranscriptMeta) throw httpError(400, 'Transcript file is required');
 
   const existing = await get(
     'SELECT id FROM applications WHERE opportunity_id = ? AND student_id = ?',
@@ -223,12 +315,24 @@ router.post('/applications', requireAuth, requireRole('student'), applicationUpl
   );
   const applicationId = String(result.lastID);
   const uploaded = [];
+  const profileUploaded = [];
 
   try {
-    const cvMeta = await uploadApplicationFile(applicationId, cvFile, 'cv');
+    const cvMeta = profileCvMeta || await uploadApplicationFile(applicationId, cvFile, 'cv');
     if (cvMeta) uploaded.push(cvMeta.key);
-    const transcriptMeta = await uploadApplicationFile(applicationId, transcriptFile, 'transcript');
+    const transcriptMeta = profileTranscriptMeta || await uploadApplicationFile(applicationId, transcriptFile, 'transcript');
     if (transcriptMeta) uploaded.push(transcriptMeta.key);
+
+    let profileCvCopy = null;
+    let profileTranscriptCopy = null;
+    if (saveUploadedCvToProfile && cvFile) {
+      profileCvCopy = await uploadProfileFile(req.user.id, cvFile, 'cv');
+      profileUploaded.push(profileCvCopy.key);
+    }
+    if (saveUploadedTranscriptToProfile && transcriptFile) {
+      profileTranscriptCopy = await uploadProfileFile(req.user.id, transcriptFile, 'transcript');
+      profileUploaded.push(profileTranscriptCopy.key);
+    }
 
     await run(
       `UPDATE applications
@@ -248,9 +352,17 @@ router.post('/applications', requireAuth, requireRole('student'), applicationUpl
       ]
     );
 
+    if (profileCvCopy) {
+      await saveProfileDocument(req.user.id, 'cv', profileCvCopy, profile?.cv_file_key);
+    }
+    if (profileTranscriptCopy) {
+      await saveProfileDocument(req.user.id, 'transcript', profileTranscriptCopy, profile?.transcript_file_key);
+    }
+
     return res.status(201).json({ id: applicationId });
   } catch (err) {
-    await Promise.all(uploaded.map(key => deleteObject(key).catch(() => {})));
+    const ownApplicationUploads = uploaded.filter(key => key.startsWith(`applications/${applicationId}/`));
+    await Promise.all([...ownApplicationUploads, ...profileUploaded].map(key => deleteObject(key).catch(() => {})));
     await run('DELETE FROM applications WHERE id = ?', [applicationId]).catch(() => {});
     throw err;
   }
