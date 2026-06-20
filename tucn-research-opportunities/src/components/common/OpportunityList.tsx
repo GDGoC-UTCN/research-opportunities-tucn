@@ -18,6 +18,9 @@ interface Props {
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   totalPages: number;
   handleCardClick: (opp: Opportunity) => void;
+  savedOpportunityIds: Set<string>;
+  handleToggleSave: (opp: Opportunity) => void;
+  handleShareOpportunity: (opp: Opportunity) => void;
 }
 
 export default function OpportunityList({
@@ -33,7 +36,10 @@ export default function OpportunityList({
   currentPage,
   setCurrentPage,
   totalPages,
-  handleCardClick
+  handleCardClick,
+  savedOpportunityIds,
+  handleToggleSave,
+  handleShareOpportunity
 }: Props) {
   const totalVisible = opportunities.filter(opp => {
     const matchesSearch =
@@ -181,6 +187,9 @@ export default function OpportunityList({
                 key={opp.id}
                 opportunity={opp}
                 onClick={() => handleCardClick(opp)}
+                saved={savedOpportunityIds.has(opp.id)}
+                onToggleSave={handleToggleSave}
+                onShare={handleShareOpportunity}
               />
             ))}
           </div>

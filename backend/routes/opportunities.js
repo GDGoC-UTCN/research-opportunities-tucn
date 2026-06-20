@@ -45,6 +45,12 @@ router.get('/opportunities', asyncHandler(async (req, res) => {
   res.json({ opportunities: rows.map(mapOpportunity) });
 }));
 
+router.get('/opportunities/:id', asyncHandler(async (req, res) => {
+  const row = await get('SELECT * FROM opportunities WHERE id = ?', [req.params.id]);
+  if (!row) throw httpError(404, 'Opportunity not found');
+  res.json({ opportunity: mapOpportunity(row) });
+}));
+
 router.post('/opportunities', requireAuth, requireApprovedProfessor, asyncHandler(async (req, res) => {
   const validationError = validateOpportunity(req.body);
   if (validationError) throw httpError(400, validationError);
@@ -90,6 +96,7 @@ router.delete('/opportunities/:id', requireAuth, asyncHandler(async (req, res) =
 
   await deleteApplicationObjectsForOpportunity(req.params.id);
   await run('DELETE FROM applications WHERE opportunity_id = ?', [req.params.id]);
+  await run('DELETE FROM saved_opportunities WHERE opportunity_id = ?', [req.params.id]);
   await run('DELETE FROM opportunities WHERE id = ?', [req.params.id]);
   res.json({ ok: true });
 }));

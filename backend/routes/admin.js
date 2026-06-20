@@ -71,11 +71,17 @@ router.delete('/admin/users/:key', asyncHandler(async (req, res) => {
          WHERE opportunity_id IN (SELECT id FROM opportunities WHERE author_id = ?)`,
         [String(target.id)]
       );
+      await run(
+        `DELETE FROM saved_opportunities
+         WHERE opportunity_id IN (SELECT id FROM opportunities WHERE author_id = ?)`,
+        [String(target.id)]
+      );
       await run('DELETE FROM opportunities WHERE author_id = ?', [String(target.id)]);
     } else if (target.role === 'student') {
       await deleteApplicationObjectsForStudent(String(target.id));
       await run('DELETE FROM applications WHERE student_id = ?', [String(target.id)]);
     }
+    await run('DELETE FROM saved_opportunities WHERE user_id = ?', [String(target.id)]);
     await run('DELETE FROM user_profiles WHERE user_id = ?', [String(target.id)]);
     await run('DELETE FROM users WHERE id = ?', [target.id]);
     await run('COMMIT');

@@ -1,14 +1,17 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Calendar, Clock } from 'lucide-react';
+import { Bookmark, Calendar, Clock, Share2 } from 'lucide-react';
 import { Opportunity } from '../types';
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
   onClick: (opp: Opportunity) => void;
+  saved: boolean;
+  onToggleSave: (opp: Opportunity) => void;
+  onShare: (opp: Opportunity) => void;
 }
 
-const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick }) => {
+const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick, saved, onToggleSave, onShare }) => {
   return (
     <motion.article
       layout
@@ -49,6 +52,37 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick 
         <p className="text-xs text-gray-500 leading-relaxed mb-4 line-clamp-3 flex-1">
           {opportunity.description}
         </p>
+
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSave(opportunity);
+            }}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+              saved
+                ? 'bg-blue-50 text-utcn-primary border border-blue-100'
+                : 'bg-gray-50 text-gray-600 border border-gray-100 hover:bg-gray-100'
+            }`}
+            aria-label={saved ? `Remove ${opportunity.title} from saved opportunities` : `Save ${opportunity.title}`}
+          >
+            <Bookmark size={13} fill={saved ? 'currentColor' : 'none'} />
+            {saved ? 'Saved' : 'Save'}
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onShare(opportunity);
+            }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gray-50 text-gray-600 border border-gray-100 hover:bg-gray-100 transition-colors"
+            aria-label={`Share ${opportunity.title}`}
+          >
+            <Share2 size={13} />
+            Share
+          </button>
+        </div>
 
         {/* Meta info */}
         <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-4">
