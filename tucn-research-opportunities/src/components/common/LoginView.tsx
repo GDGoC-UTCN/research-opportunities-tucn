@@ -12,11 +12,15 @@ interface SignupData {
 }
 
 interface Props {
-  handleLogin: (role: 'student' | 'professor' | 'admin') => void;
+  handleLoginEmail: (email: string, password: string, role: 'student' | 'professor' | 'admin') => Promise<UserLike>;
   handleSignup: (data: SignupData) => void;
 }
 
-export default function LoginView({ handleLogin, handleSignup }: Props) {
+interface UserLike {
+  id: string;
+}
+
+export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
   const initialRole = (typeof window !== 'undefined' && window.location && window.location.pathname === '/admin') ? 'admin' as const : null;
   const [selectedRole, setSelectedRole] = useState<null | 'student' | 'professor' | 'admin'>(initialRole);
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -167,7 +171,7 @@ export default function LoginView({ handleLogin, handleSignup }: Props) {
                   const pass = fd.get('loginPass') as string; 
                   setLastError(null);
                   try {
-                    await (window as any).__handleLoginEmail?.(email, pass, selectedRole as any);
+                    await handleLoginEmail(email, pass, selectedRole as any);
                   } catch (err) {
                     // err is structured { message, status, body }
                     setLastError(err as any);
@@ -196,11 +200,6 @@ export default function LoginView({ handleLogin, handleSignup }: Props) {
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 text-sm rounded">
                   <div className="font-semibold text-red-700">Login error: {lastError.message}</div>
                   <div className="text-xs text-gray-600 mt-1">Status: {String(lastError.status)}</div>
-                  <details className="mt-2 text-xs text-gray-700">
-                    <summary className="cursor-pointer">Response body / debug info (click to expand)</summary>
-                    <pre className="whitespace-pre-wrap mt-2 text-xs">{JSON.stringify(lastError.body, null, 2)}</pre>
-                  </details>
-                  <div className="mt-2 text-xs text-gray-500">Please copy the above details and paste them in the chat or a bug report so I can debug further.</div>
                 </div>
               )}
             </div>

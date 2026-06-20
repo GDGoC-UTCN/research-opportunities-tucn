@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, ArrowLeft } from 'lucide-react';
 import { Opportunity, ApplicationField, User } from '../../types';
+import { apiFetch } from '../../api';
 
 interface Props {
   currentUser: User;
@@ -23,7 +24,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const newOpp: Opportunity = {
@@ -48,30 +49,30 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
       },
     };
 
-    // Persist to backend so all users see the new opportunity
-    fetch('/api/opportunities', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: newOpp.title,
-        description: newOpp.description,
-        abstract: newOpp.abstract,
-        stipend: newOpp.stipend,
-        duration: newOpp.duration,
-        deadline: newOpp.deadline,
-        tags: newOpp.tags,
-        applicationFields: newOpp.applicationFields,
-        requireCv: newOpp.requireCv,
-        requireTranscript: newOpp.requireTranscript,
-        author: newOpp.author,
-      }),
-    })
-      .then(r => r.json())
-      .then(json => {
-        // Use the server-assigned ID so deletes work correctly
-        if (json.id) newOpp.id = String(json.id);
-      })
-      .catch(() => { /* server unreachable — keep local id */ });
+    try {
+      const response = await apiFetch('/api/opportunities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newOpp.title,
+          description: newOpp.description,
+          abstract: newOpp.abstract,
+          stipend: newOpp.stipend,
+          duration: newOpp.duration,
+          deadline: newOpp.deadline,
+          tags: newOpp.tags,
+          applicationFields: newOpp.applicationFields,
+          requireCv: newOpp.requireCv,
+          requireTranscript: newOpp.requireTranscript,
+        }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || 'Failed to publish opportunity');
+      if (json.id) newOpp.id = String(json.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to publish opportunity');
+      return;
+    }
 
     setOpportunities(prev => [newOpp, ...prev]);
     setNewOppFields([]);
@@ -221,11 +222,4 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
       </div>
     </motion.div>
   );
-}
-
-interface Props {
-  currentUser: User;
-  opportunities: Opportunity[];
-  setOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
-  setView: (view: 'dashboard' | 'list') => void;
 }
