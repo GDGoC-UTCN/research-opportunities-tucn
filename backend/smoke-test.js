@@ -52,6 +52,22 @@ async function waitForHealth() {
   throw new Error('API did not become healthy');
 }
 
+async function waitForProfileMigration() {
+  for (let i = 0; i < 40; i += 1) {
+    const profileColumns = await allSql('PRAGMA table_info(user_profiles)');
+    const profileColumnNames = new Set(profileColumns.map(column => column.name));
+    if (
+      profileColumnNames.has('created_at') &&
+      profileColumnNames.has('updated_at') &&
+      profileColumnNames.has('cv_file_key')
+    ) {
+      return profileColumnNames;
+    }
+    await wait(100);
+  }
+  throw new Error('user_profiles runtime migration did not complete');
+}
+
 function runSql(sql, params = []) {
   const db = new sqlite3.Database(DB_PATH);
   return new Promise((resolve, reject) => {
@@ -59,6 +75,17 @@ function runSql(sql, params = []) {
       db.close();
       if (err) reject(err);
       else resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+}
+
+function allSql(sql, params = []) {
+  const db = new sqlite3.Database(DB_PATH);
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      db.close();
+      if (err) reject(err);
+      else resolve(rows);
     });
   });
 }
@@ -150,6 +177,8 @@ function assert(condition, message, detail) {
 }
 
 async function main() {
+  await runSql('CREATE TABLE user_profiles (user_id TEXT PRIMARY KEY, linkedin_url TEXT)');
+
   const child = spawn(process.execPath, ['index.js'], {
     cwd: __dirname,
     env: {
@@ -171,6 +200,11 @@ async function main() {
 
   try {
     await waitForHealth();
+
+    const profileColumnNames = await waitForProfileMigration();
+    assert(profileColumnNames.has('created_at'), 'runtime migration should add user_profiles.created_at');
+    assert(profileColumnNames.has('updated_at'), 'runtime migration should add user_profiles.updated_at');
+    assert(profileColumnNames.has('cv_file_key'), 'runtime migration should add profile document columns');
 
     const adminPass = 'adminpass123';
     await runSql(

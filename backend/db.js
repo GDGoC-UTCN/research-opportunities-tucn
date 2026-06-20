@@ -131,8 +131,8 @@ function ensureUserProfileColumns() {
     ['transcript_file_name', 'TEXT'],
     ['transcript_file_size', 'INTEGER'],
     ['transcript_file_type', 'TEXT'],
-    ['created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP'],
-    ['updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP'],
+    ['created_at', 'TEXT'],
+    ['updated_at', 'TEXT'],
   ];
 
   db.all('PRAGMA table_info(user_profiles)', [], (err, rows) => {
@@ -141,12 +141,42 @@ function ensureUserProfileColumns() {
       return;
     }
     const existing = new Set(rows.map(row => row.name));
-    for (const [name, type] of columns) {
-      if (!existing.has(name)) {
-        db.run(`ALTER TABLE user_profiles ADD COLUMN ${name} ${type}`, alterErr => {
-          if (alterErr) console.error(`Failed to add user_profiles.${name}`, alterErr);
-        });
+
+    const missing = columns.filter(([name]) => !existing.has(name));
+    const addNextColumn = (index = 0) => {
+      if (index >= missing.length) {
+        db.run(
+          `UPDATE user_profiles
+           SET created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+               updated_at = COALESCE(updated_at, CURRENT_TIMESTAMP)`,
+          updateErr => {
+            if (updateErr) console.error('Failed to backfill user_profiles timestamps', updateErr);
+          }
+        );
+        return;
       }
+
+      const [name, type] = missing[index];
+      db.run(`ALTER TABLE user_profiles ADD COLUMN ${name} ${type}`, alterErr => {
+        if (alterErr) {
+          console.error(`Failed to add user_profiles.${name}`, alterErr);
+          return;
+        }
+        addNextColumn(index + 1);
+      });
+    };
+
+    if (missing.length > 0) {
+      addNextColumn();
+    } else {
+      db.run(
+        `UPDATE user_profiles
+         SET created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+             updated_at = COALESCE(updated_at, CURRENT_TIMESTAMP)`,
+        updateErr => {
+          if (updateErr) console.error('Failed to backfill user_profiles timestamps', updateErr);
+        }
+      );
     }
   });
 }

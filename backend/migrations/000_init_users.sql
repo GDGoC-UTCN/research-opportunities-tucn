@@ -69,8 +69,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   transcript_file_name TEXT,
   transcript_file_size INTEGER,
   transcript_file_type TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS saved_opportunities (
