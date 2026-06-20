@@ -1,12 +1,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { School, CheckCircle2, User as UserIcon, ChevronDown, Plus, LogOut, LayoutDashboard, LogIn } from 'lucide-react';
+import { School, CheckCircle2, User as UserIcon, ChevronDown, Plus, LogOut, LayoutDashboard, LogIn, Settings } from 'lucide-react';
 import { User } from '../../types';
 import Logo from './Logo';
 
 interface Props {
   currentUser: User | null;
-  setView: (view: 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications') => void;
+  setView: (view: 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile') => void;
   showUserMenu: boolean;
   setShowUserMenu: (show: boolean) => void;
   handleLogout: () => void;
@@ -14,7 +14,7 @@ interface Props {
 
 export default function Header({ currentUser, setView, showUserMenu, setShowUserMenu, handleLogout }: Props) {
   const homeView = currentUser?.role === 'professor' ? 'dashboard' : currentUser?.role === 'admin' ? 'dashboard' : 'list';
-  const navigate = (view: 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications') => {
+  const navigate = (view: 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile') => {
     setView(view);
     setShowUserMenu(false);
     if (view === 'login') window.history.pushState({}, '', '/login');
@@ -133,6 +133,11 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                     )}
 
                     <div className="py-1">
+                      {currentUser && (
+                        <button onClick={() => navigate('profile')} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">
+                          <Settings size={15} className="text-gray-400" /> My Profile
+                        </button>
+                      )}
                       {!currentUser && (
                         <>
                           <button onClick={() => navigate('list')} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">

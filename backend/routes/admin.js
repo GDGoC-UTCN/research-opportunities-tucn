@@ -76,6 +76,7 @@ router.delete('/admin/users/:key', asyncHandler(async (req, res) => {
       await deleteApplicationObjectsForStudent(String(target.id));
       await run('DELETE FROM applications WHERE student_id = ?', [String(target.id)]);
     }
+    await run('DELETE FROM user_profiles WHERE user_id = ?', [String(target.id)]);
     await run('DELETE FROM users WHERE id = ?', [target.id]);
     await run('COMMIT');
   } catch (err) {

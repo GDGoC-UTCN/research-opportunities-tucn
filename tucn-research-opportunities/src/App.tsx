@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { MOCK_OPPORTUNITIES, Opportunity, User, Application } from './types';
+import { MOCK_OPPORTUNITIES, Opportunity, User, Application, UserProfile, ApplicationDocumentOptions } from './types';
 import AdminDashboard from './components/admin/AdminDashboard';
 
 // Extracted Components
@@ -13,9 +13,10 @@ import CreateOpportunity from './components/teacher/CreateOpportunity';
 import TeacherDashboard from './components/teacher/TeacherDashboard';
 import StudentApplications from './components/student/StudentApplications';
 import ApplicationModal from './components/student/ApplicationModal';
+import ProfilePage from './components/profile/ProfilePage';
 import { apiFetch, resetCsrfToken } from './api';
 
-type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications';
+type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile';
 
 function normalizeUser(user: any): User {
   return {
@@ -39,6 +40,7 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [view, setView] = useState<View>(() => window.location.pathname === '/login' || window.location.pathname === '/admin' ? 'login' : 'list');
   
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
@@ -264,6 +266,7 @@ export default function App() {
     resetCsrfToken();
     setCurrentUser(null);
     setApplications([]);
+    setProfile(null);
     setShowUserMenu(false);
     setApplyModalOpen(false);
     setPendingApplyOpportunityId(null);
@@ -298,6 +301,22 @@ export default function App() {
     } catch { /* ignore */ }
   };
 
+  const loadProfile = async () => {
+    if (!currentUser) return null;
+    try {
+      const res = await apiFetch('/api/profile');
+      if (!res.ok) return null;
+      const json = await res.json();
+      setProfile(json.profile);
+      if (json.profile?.avatar) {
+        setCurrentUser(prev => prev ? { ...prev, avatar: `/api/profile/avatar?v=${Date.now()}` } : prev);
+      }
+      return json.profile as UserProfile;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -325,7 +344,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser) loadApplications(currentUser);
+    if (currentUser) {
+      loadApplications(currentUser);
+      loadProfile();
+    }
   }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -476,6 +498,12 @@ export default function App() {
               setView={setView}
               setSelectedOpportunity={setSelectedOpportunity}
             />
+          ) : view === 'profile' && currentUser ? (
+            <ProfilePage
+              currentUser={currentUser}
+              setCurrentUser={setCurrentUser}
+              setView={setView}
+            />
           ) : null}
         </AnimatePresence>
       </main>
@@ -485,11 +513,17 @@ export default function App() {
       {applyModalOpen && selectedOpportunity && currentUser && (
         <ApplicationModal
           opportunity={selectedOpportunity}
-          onSubmit={async (message, answers, cvFile, transcriptFile) => {
+          profile={profile}
+          onProfileRefresh={loadProfile}
+          onSubmit={async (message, answers, cvFile, transcriptFile, documentOptions: ApplicationDocumentOptions) => {
             const formData = new FormData();
             formData.append('opportunityId', selectedOpportunity.id);
             formData.append('message', message);
             formData.append('answers', JSON.stringify(answers));
+            formData.append('useProfileCv', String(documentOptions.useProfileCv));
+            formData.append('useProfileTranscript', String(documentOptions.useProfileTranscript));
+            formData.append('saveUploadedCvToProfile', String(documentOptions.saveUploadedCvToProfile));
+            formData.append('saveUploadedTranscriptToProfile', String(documentOptions.saveUploadedTranscriptToProfile));
             if (cvFile?.file) formData.append('cv', cvFile.file);
             if (transcriptFile?.file) formData.append('transcript', transcriptFile.file);
 
@@ -502,6 +536,7 @@ export default function App() {
               throw new Error(errJson.error || `Server error ${res.status}`);
             }
             await loadApplications(currentUser);
+            await loadProfile();
             setApplyModalOpen(false);
           }}
           onClose={() => setApplyModalOpen(false)}

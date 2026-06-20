@@ -53,3 +53,22 @@ CREATE TABLE IF NOT EXISTS applications (
   reply_date TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id TEXT PRIMARY KEY,
+  linkedin_url TEXT,
+  avatar_file_key TEXT,
+  avatar_file_name TEXT,
+  avatar_file_size INTEGER,
+  avatar_file_type TEXT,
+  cv_file_key TEXT,
+  cv_file_name TEXT,
+  cv_file_size INTEGER,
+  cv_file_type TEXT,
+  transcript_file_key TEXT,
+  transcript_file_name TEXT,
+  transcript_file_size INTEGER,
+  transcript_file_type TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
