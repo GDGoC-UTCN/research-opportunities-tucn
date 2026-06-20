@@ -201,6 +201,19 @@ async function main() {
     preflight = await fetch(`${BASE_URL}/api/login`, {
       method: 'OPTIONS',
       headers: {
+        Origin: 'http://airi.example:8080',
+        Host: 'api:4000',
+        'X-Forwarded-Host': 'airi.example:8080',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type,X-CSRF-Token',
+      },
+    });
+    assert(preflight.status === 204, 'proxied same-host preflight should succeed', String(preflight.status));
+    assert(preflight.headers.get('access-control-allow-origin') === 'http://airi.example:8080', 'proxied same-host preflight should echo origin');
+
+    preflight = await fetch(`${BASE_URL}/api/login`, {
+      method: 'OPTIONS',
+      headers: {
         Origin: unknownOrigin,
         'Access-Control-Request-Method': 'POST',
         'Access-Control-Request-Headers': 'Content-Type,X-CSRF-Token',

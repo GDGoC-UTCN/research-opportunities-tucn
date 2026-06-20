@@ -65,7 +65,7 @@ CSRF behavior:
 - The frontend `apiFetch` helper fetches and sends the token automatically.
 - Login, signup, and logout use the same CSRF flow as other state-changing requests.
 
-Credentialed CORS uses an allowlist from `CORS_ORIGIN`. Multiple origins are comma-separated. Unknown origins are rejected; requests with no `Origin` header are allowed for server-to-server checks.
+Credentialed CORS uses an allowlist from `CORS_ORIGIN`. Multiple origins are comma-separated. Requests proxied through the frontend Nginx `/api` path are also allowed when `Origin` matches the forwarded public host. Unknown cross-site origins are rejected; requests with no `Origin` header are allowed for server-to-server checks.
 
 ## Backend Middleware
 
@@ -119,7 +119,7 @@ PORT=4000
 DB_PATH=./backend/data.sqlite
 JWT_SECRET=replace-with-at-least-32-random-characters
 CSRF_SECRET=replace-with-at-least-32-random-characters
-CORS_ORIGIN=https://ro.utcluj.ro,http://10.20.7.149:8080,http://localhost:8080,http://localhost:3000
+CORS_ORIGIN=https://ro.utcluj.ro,http://ro.utcluj.ro,http://10.20.7.149:8080,http://10.20.7.149,http://localhost:8080,http://localhost:3000
 AUTH_COOKIE_NAME=tucn_auth
 CSRF_COOKIE_NAME=tucn_csrf
 COOKIE_SAME_SITE=lax
@@ -193,7 +193,7 @@ JWT_SECRET=replace-with-at-least-32-random-characters
 CSRF_SECRET=replace-with-at-least-32-random-characters
 ADMIN_EMAIL=AIRI@campus.utcluj.ro
 ADMIN_INITIAL_PASSWORD=replace-with-a-strong-initial-admin-password
-CORS_ORIGIN=https://ro.utcluj.ro,http://10.20.7.149:8080,http://localhost:8080,http://localhost:3000
+CORS_ORIGIN=https://ro.utcluj.ro,http://ro.utcluj.ro,http://10.20.7.149:8080,http://10.20.7.149,http://localhost:8080,http://localhost:3000
 COOKIE_SECURE=false
 COOKIE_SAME_SITE=lax
 COOKIE_DOMAIN=

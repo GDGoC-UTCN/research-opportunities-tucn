@@ -22,7 +22,15 @@ requireJwtSecret();
 initDb();
 
 const app = express();
-const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+const defaultCorsOrigins = [
+  'https://ro.utcluj.ro',
+  'http://ro.utcluj.ro',
+  'http://10.20.7.149:8080',
+  'http://10.20.7.149',
+  'http://localhost:8080',
+  'http://localhost:3000',
+].join(',');
+const corsOrigins = (process.env.CORS_ORIGIN || defaultCorsOrigins)
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
@@ -30,17 +38,36 @@ const bodyLimit = process.env.BODY_LIMIT || '16mb';
 const allowedCorsMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 const allowedCorsHeaders = ['Content-Type', 'X-CSRF-Token', 'Authorization'];
 
-function corsOrigin(origin, callback) {
+function hostValues(req) {
+  const values = [];
+  const forwardedHost = req.get('x-forwarded-host');
+  const host = req.get('host');
+  if (forwardedHost) values.push(...forwardedHost.split(',').map(value => value.trim()));
+  if (host) values.push(host.trim());
+  return values.filter(Boolean);
+}
+
+function matchesProxiedHost(origin, req) {
+  try {
+    const parsed = new URL(origin);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    return hostValues(req).some(host => parsed.host === host);
+  } catch {
+    return false;
+  }
+}
+
+function corsOrigin(req, origin, callback) {
   if (!origin) return callback(null, true);
   if (corsOrigins.includes(origin)) return callback(null, true);
+  if (matchesProxiedHost(origin, req)) return callback(null, true);
 
   const err = new Error('Origin not allowed by CORS');
   err.status = 403;
   return callback(err);
 }
 
-const corsOptions = {
-  origin: corsOrigin,
+const baseCorsOptions = {
   credentials: true,
   methods: allowedCorsMethods,
   allowedHeaders: allowedCorsHeaders,
@@ -48,10 +75,19 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
+function corsOptionsDelegate(req, callback) {
+  callback(null, {
+    ...baseCorsOptions,
+    origin(origin, originCallback) {
+      return corsOrigin(req, origin, originCallback);
+    },
+  });
+}
+
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use(cors(corsOptionsDelegate));
+app.options('*', cors(corsOptionsDelegate));
 app.use(cookieParser());
 app.use(express.json({ limit: bodyLimit }));
 app.use(express.urlencoded({ limit: bodyLimit, extended: true }));
