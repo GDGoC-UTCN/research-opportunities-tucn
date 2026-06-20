@@ -62,10 +62,11 @@ function runSql(sql, params = []) {
   });
 }
 
-async function request(method, route, jar, body) {
+async function request(method, route, jar, body, options = {}) {
   const headers = new Headers();
   if (body !== undefined) headers.set('Content-Type', 'application/json');
   if (jar?.header()) headers.set('Cookie', jar.header());
+  if (options.origin) headers.set('Origin', options.origin);
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     if (!jar.csrfToken) {
@@ -129,6 +130,20 @@ async function download(route, jar) {
   return { response, buffer };
 }
 
+async function rawJsonRequest(method, route, body, headers = {}) {
+  const response = await fetch(`${BASE_URL}${route}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await response.text();
+  const json = text ? JSON.parse(text) : {};
+  return { response, json };
+}
+
 function assert(condition, message, detail) {
   if (!condition) throw new Error(`${message}${detail ? `: ${detail}` : ''}`);
 }
@@ -141,8 +156,10 @@ async function main() {
       PORT: String(PORT),
       DB_PATH,
       JWT_SECRET,
-      CORS_ORIGIN: 'http://localhost:3000',
-      NODE_ENV: 'development',
+      CORS_ORIGIN: 'http://localhost:3000,http://10.20.7.149:8080',
+      NODE_ENV: 'production',
+      COOKIE_SECURE: 'false',
+      COOKIE_SAME_SITE: 'lax',
       STORAGE_PROVIDER: 'local',
       LOCAL_STORAGE_DIR,
       MAX_UPLOAD_MB: '1',
@@ -165,8 +182,48 @@ async function main() {
     const professor = new CookieJar();
     const otherProfessor = new CookieJar();
     const pendingProfessor = new CookieJar();
+    const allowedOrigin = 'http://10.20.7.149:8080';
+    const unknownOrigin = 'https://evil.example';
 
-    let result = await request('POST', '/api/signup', student, {
+    let preflight = await fetch(`${BASE_URL}/api/login`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: allowedOrigin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type,X-CSRF-Token',
+      },
+    });
+    assert(preflight.status === 204, 'allowed login preflight should succeed', String(preflight.status));
+    assert(preflight.headers.get('access-control-allow-origin') === allowedOrigin, 'preflight should echo allowed origin');
+    assert(preflight.headers.get('access-control-allow-credentials') === 'true', 'preflight should allow credentials');
+    assert((preflight.headers.get('access-control-allow-headers') || '').toLowerCase().includes('x-csrf-token'), 'preflight should allow X-CSRF-Token');
+
+    preflight = await fetch(`${BASE_URL}/api/login`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: unknownOrigin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type,X-CSRF-Token',
+      },
+    });
+    assert(preflight.status === 403, 'unknown production origin should be rejected', String(preflight.status));
+
+    let result = await rawJsonRequest('POST', '/api/login', {
+      email: 'admin@example.com',
+      password: adminPass,
+      role: 'admin',
+    }, { Origin: allowedOrigin });
+    assert(result.response.status === 403 && /csrf/i.test(result.json.error || ''), 'login without CSRF should be rejected');
+
+    const csrfProbe = new CookieJar();
+    const csrfResponse = await fetch(`${BASE_URL}/api/csrf-token`, { headers: { Origin: allowedOrigin } });
+    csrfProbe.store(csrfResponse.headers);
+    const csrfJson = await csrfResponse.json();
+    csrfProbe.csrfToken = csrfJson.csrfToken;
+    assert(csrfResponse.status === 200 && csrfProbe.csrfToken, 'CSRF token endpoint should issue token');
+    assert(csrfResponse.headers.get('access-control-allow-origin') === allowedOrigin, 'CSRF endpoint should include CORS origin');
+
+    result = await request('POST', '/api/signup', student, {
       name: 'Smoke Student',
       email: 'student@example.com',
       password: 'studentpass123',
@@ -205,8 +262,14 @@ async function main() {
       email: 'admin@example.com',
       password: adminPass,
       role: 'admin',
-    });
+    }, { origin: allowedOrigin });
     assert(result.response.status === 200, 'admin login should succeed');
+    assert(result.response.headers.get('access-control-allow-origin') === allowedOrigin, 'login should include allowed CORS origin');
+    assert(result.response.headers.get('access-control-allow-credentials') === 'true', 'login should allow credentials');
+    assert((result.response.headers.get('set-cookie') || '').includes('tucn_auth='), 'login should set auth cookie');
+
+    result = await request('GET', '/api/me', admin, undefined, { origin: allowedOrigin });
+    assert(result.response.status === 200 && result.json.user.role === 'admin', '/me should work with login cookie and CORS origin');
 
     result = await request('GET', '/api/admin/users', student);
     assert(result.response.status === 403, 'student cannot list admin users');
