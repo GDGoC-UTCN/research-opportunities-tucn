@@ -20,7 +20,7 @@ services:
       - DB_PATH=/data/data.sqlite
       - NODE_ENV=${NODE_ENV:-development}
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env or your shell}
-      - CORS_ORIGIN=${CORS_ORIGIN:-https://ro.utcluj.ro,http://10.20.7.149:8080,http://localhost:8080,http://localhost:3000}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://ro.utcluj.ro,http://ro.utcluj.ro,http://10.20.7.149:8080,http://10.20.7.149,http://localhost:8080,http://localhost:3000}
       - AUTH_COOKIE_NAME=${AUTH_COOKIE_NAME:-tucn_auth}
       - CSRF_COOKIE_NAME=${CSRF_COOKIE_NAME:-tucn_csrf}
       - CSRF_SECRET=${CSRF_SECRET:-}
@@ -87,7 +87,7 @@ services:
       - DB_PATH=/data/data.sqlite
       - NODE_ENV=${NODE_ENV:-development}
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env or your shell}
-      - CORS_ORIGIN=${CORS_ORIGIN:-https://ro.utcluj.ro,http://10.20.7.149:8080,http://localhost:8080,http://localhost:3000}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://ro.utcluj.ro,http://ro.utcluj.ro,http://10.20.7.149:8080,http://10.20.7.149,http://localhost:8080,http://localhost:3000}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-AIRI@campus.utcluj.ro}
       - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-}
       - ADMIN_NAME=${ADMIN_NAME:-AIRi Admin}
