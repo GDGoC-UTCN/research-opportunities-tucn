@@ -449,11 +449,22 @@ async function main() {
       'users cannot see another user saved opportunities'
     );
 
+    result = await request('GET', '/api/profile/my-opportunities', guest);
+    assert(result.response.status === 401, 'unauthenticated my-opportunities should be rejected');
+
+    result = await request('GET', '/api/profile/my-opportunities', student);
+    assert(
+      result.response.status === 200 && result.json.saved.some(item => item.opportunity.id === String(opportunityId)),
+      'saved opportunity should appear in my-opportunities.saved'
+    );
+
     result = await request('DELETE', `/api/profile/saved-opportunities/${opportunityId}`, student);
     assert(result.response.status === 200 && result.json.saved === false, 'student can unsave opportunity');
 
     result = await request('DELETE', `/api/profile/saved-opportunities/${opportunityId}`, student);
     assert(result.response.status === 200 && result.json.saved === false, 'unsaving opportunity should be idempotent');
+
+    await request('POST', `/api/profile/saved-opportunities/${opportunityId}`, student);
 
     result = await request('POST', '/api/opportunities', professor, {
       title: 'Smoke Opportunity With CV',
@@ -497,6 +508,20 @@ async function main() {
     });
     assert(result.response.status === 201, 'student should apply');
     const applicationId = result.json.id;
+
+    result = await request('GET', '/api/profile/my-opportunities', student);
+    assert(
+      result.response.status === 200 &&
+        !result.json.saved.some(item => item.opportunity.id === String(opportunityId)) &&
+        result.json.applied.some(item => item.application.id === String(applicationId)),
+      'applied saved opportunity should move from saved to applied'
+    );
+
+    result = await request('POST', `/api/profile/saved-opportunities/${opportunityId}`, student);
+    assert(
+      result.response.status === 200 && result.json.alreadyApplied === true && result.json.saved === false,
+      'already applied opportunity should not be saved'
+    );
 
     result = await multipartRequest('/api/applications', student, {
       opportunityId: requiredCvOpportunityId,
@@ -593,6 +618,26 @@ async function main() {
       professorReply: 'Welcome',
     });
     assert(result.response.status === 200, 'owner professor can patch application');
+
+    result = await request('GET', '/api/profile/my-opportunities', student);
+    assert(
+      result.response.status === 200 &&
+        result.json.accepted.some(item => item.application.id === String(applicationId)) &&
+        !result.json.applied.some(item => item.application.id === String(applicationId)),
+      'accepted application should move from applied to accepted'
+    );
+
+    result = await request('PATCH', `/api/applications/${profileFileApplicationId}`, professor, {
+      status: 'rejected',
+      professorReply: 'Not this time',
+    });
+    assert(result.response.status === 200, 'owner professor can reject another application');
+
+    result = await request('GET', '/api/profile/my-opportunities', student);
+    assert(
+      result.response.status === 200 && result.json.rejected.some(item => item.application.id === String(profileFileApplicationId)),
+      'rejected application should appear in rejected'
+    );
 
     await request('DELETE', `/api/opportunities/${opportunityId}`, admin);
     await request('DELETE', `/api/opportunities/${requiredCvOpportunityId}`, admin);

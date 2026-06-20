@@ -1,17 +1,30 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Bookmark, Calendar, Clock, Share2 } from 'lucide-react';
-import { Opportunity } from '../types';
+import { ApplicationStatus, Opportunity } from '../types';
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
   onClick: (opp: Opportunity) => void;
   saved: boolean;
+  applicationStatus?: ApplicationStatus;
   onToggleSave: (opp: Opportunity) => void;
   onShare: (opp: Opportunity) => void;
 }
 
-const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick, saved, onToggleSave, onShare }) => {
+const STATUS_LABELS: Record<ApplicationStatus, string> = {
+  pending: 'Applied',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+};
+
+const STATUS_STYLES: Record<ApplicationStatus, string> = {
+  pending: 'bg-amber-50 text-amber-700 border border-amber-100',
+  accepted: 'bg-green-50 text-green-700 border border-green-100',
+  rejected: 'bg-red-50 text-red-600 border border-red-100',
+};
+
+const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick, saved, applicationStatus, onToggleSave, onShare }) => {
   return (
     <motion.article
       layout
@@ -54,22 +67,29 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick,
         </p>
 
         <div className="flex items-center gap-2 mb-4">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleSave(opportunity);
-            }}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
-              saved
-                ? 'bg-blue-50 text-utcn-primary border border-blue-100'
-                : 'bg-gray-50 text-gray-600 border border-gray-100 hover:bg-gray-100'
-            }`}
-            aria-label={saved ? `Remove ${opportunity.title} from saved opportunities` : `Save ${opportunity.title}`}
-          >
-            <Bookmark size={13} fill={saved ? 'currentColor' : 'none'} />
-            {saved ? 'Saved' : 'Save'}
-          </button>
+          {applicationStatus ? (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold ${STATUS_STYLES[applicationStatus]}`}>
+              <Bookmark size={13} fill="currentColor" />
+              {STATUS_LABELS[applicationStatus]}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleSave(opportunity);
+              }}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+                saved
+                  ? 'bg-blue-50 text-utcn-primary border border-blue-100'
+                  : 'bg-gray-50 text-gray-600 border border-gray-100 hover:bg-gray-100'
+              }`}
+              aria-label={saved ? `Remove ${opportunity.title} from saved opportunities` : `Save ${opportunity.title}`}
+            >
+              <Bookmark size={13} fill={saved ? 'currentColor' : 'none'} />
+              {saved ? 'Saved' : 'Save'}
+            </button>
+          )}
           <button
             type="button"
             onClick={(event) => {

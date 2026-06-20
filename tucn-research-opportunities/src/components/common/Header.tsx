@@ -64,7 +64,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                   Browse
                 </button>
                 <button onClick={() => { setView('applications'); window.history.pushState({}, '', '/applications'); }} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
-                  My Applications
+                  My Opportunities
                 </button>
               </nav>
             )}
@@ -168,7 +168,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                             <School size={15} className="text-gray-400" /> Browse Opportunities
                           </button>
                           <button onClick={() => { setView('applications'); setShowUserMenu(false); window.history.pushState({}, '', '/applications'); }} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">
-                            <CheckCircle2 size={15} className="text-gray-400" /> My Applications
+                            <CheckCircle2 size={15} className="text-gray-400" /> My Opportunities
                           </button>
                         </>
                       )}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Calendar as CalendarIcon, Clock, DollarSign, Bookmark, Share2, CheckCircle2 } from 'lucide-react';
-import { Opportunity, User, Application } from '../../types';
+import { ApplicationStatus, Opportunity, User, Application } from '../../types';
 
 interface Props {
   selectedOpportunity: Opportunity;
@@ -11,9 +11,16 @@ interface Props {
   handleBack: () => void;
   handleApplyClick: (opportunity: Opportunity) => void;
   saved: boolean;
+  applicationStatus?: ApplicationStatus;
   handleToggleSave: (opportunity: Opportunity) => void;
   handleShareOpportunity: (opportunity: Opportunity) => void;
 }
+
+const STATUS_STYLES: Record<ApplicationStatus, string> = {
+  pending: 'bg-amber-50 text-amber-700 border border-amber-100',
+  accepted: 'bg-green-50 text-green-700 border border-green-100',
+  rejected: 'bg-red-50 text-red-600 border border-red-100',
+};
 
 export default function OpportunityDetail({
   selectedOpportunity,
@@ -23,6 +30,7 @@ export default function OpportunityDetail({
   handleBack,
   handleApplyClick,
   saved,
+  applicationStatus,
   handleToggleSave,
   handleShareOpportunity
 }: Props) {
@@ -181,18 +189,24 @@ export default function OpportunityDetail({
               View Applicants
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => handleToggleSave(selectedOpportunity)}
-            className={`flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold transition-colors ${
-              saved
-                ? 'bg-blue-50 text-utcn-primary border border-blue-100 hover:bg-blue-100'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-            aria-label={saved ? 'Remove from saved opportunities' : 'Save opportunity'}
-          >
-            <Bookmark size={15} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save'}
-          </button>
+          {applicationStatus ? (
+            <span className={`flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold ${STATUS_STYLES[applicationStatus]}`}>
+              <Bookmark size={15} fill="currentColor" /> {applicationStatus === 'pending' ? 'Applied' : applicationStatus === 'accepted' ? 'Accepted' : 'Rejected'}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleToggleSave(selectedOpportunity)}
+              className={`flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold transition-colors ${
+                saved
+                  ? 'bg-blue-50 text-utcn-primary border border-blue-100 hover:bg-blue-100'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              aria-label={saved ? 'Remove from saved opportunities' : 'Save opportunity'}
+            >
+              <Bookmark size={15} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save'}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => handleShareOpportunity(selectedOpportunity)}

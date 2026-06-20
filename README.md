@@ -38,12 +38,22 @@ Authenticated users can manage a profile with:
 - protected profile avatar stored in object storage;
 - protected default CV and transcript PDFs stored in object storage;
 - saved profile documents that students can attach to applications without re-uploading;
-- saved opportunities for later review or application;
 - per-application PDF uploads that can optionally be saved back to the student's profile.
 
 Profile storage uses the `user_profiles` table. SQLite stores only safe metadata and object keys. Object storage remains private, and downloads go through authenticated backend endpoints.
 
-Saved opportunities use the `saved_opportunities` table. Users can save or remove only their own saved rows. The profile page lists saved opportunities with View, Apply, and Remove actions; applying still requires a student account and uses the existing application document flow.
+Saved opportunities use the `saved_opportunities` table. Students manage saved and submitted opportunities from the My Opportunities page, not the profile editor.
+
+## My Opportunities
+
+Students have a dedicated My Opportunities page with four exclusive sections:
+
+- Saved: opportunities the student saved but has not applied to.
+- Applied: submitted applications with `pending` status.
+- Accepted: applications accepted by the professor.
+- Rejected: applications rejected by the professor.
+
+An opportunity appears in only one section at a time. Application status wins over saved state. When a student applies to a saved opportunity, the backend removes the saved row after the application is created, and the item moves from Saved to Applied. If a student tries to save an opportunity they already applied to, the save endpoint returns `alreadyApplied` status and the UI shows Applied, Accepted, or Rejected instead of Save.
 
 ## PDF Upload Storage
 
@@ -122,6 +132,7 @@ Passwords and password hashes are never returned by the API.
 | `GET` | `/api/profile/documents/transcript` | Authenticated current user |
 | `DELETE` | `/api/profile/documents/cv` | Authenticated current user, CSRF required |
 | `DELETE` | `/api/profile/documents/transcript` | Authenticated current user, CSRF required |
+| `GET` | `/api/profile/my-opportunities` | Student only; returns saved/applied/accepted/rejected |
 | `GET` | `/api/profile/saved-opportunities` | Authenticated current user |
 | `POST` | `/api/profile/saved-opportunities/:opportunityId` | Authenticated current user, CSRF required |
 | `DELETE` | `/api/profile/saved-opportunities/:opportunityId` | Authenticated current user, CSRF required |
@@ -140,9 +151,11 @@ Manual checks:
 2. Open `/opportunities/<id>` directly in a fresh browser session and confirm the detail page loads without authentication.
 3. Use Share from a card or detail page and confirm the copied/shared URL opens the same public detail page.
 4. Click Save while logged out and confirm the app redirects to login; after successful login, the opportunity is saved.
-5. Log in as a student, save an opportunity, open My Profile, and confirm it appears under Saved Opportunities.
-6. Use View, Apply, and Remove from the saved opportunity row.
-7. Confirm professors and admins can browse/share/save, but application submission remains student-only.
+5. Log in as a student, save an opportunity, open My Opportunities, and confirm it appears under Saved.
+6. Apply to the saved opportunity and confirm it moves from Saved to Applied.
+7. Confirm accepted and rejected professor decisions move applications to their respective sections.
+8. Confirm already-applied opportunities show Applied, Accepted, or Rejected instead of Save.
+9. Confirm professors and admins can browse/share, but application submission remains student-only.
 
 ## Environment Variables
 

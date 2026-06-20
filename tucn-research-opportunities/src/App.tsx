@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { MOCK_OPPORTUNITIES, Opportunity, User, Application, UserProfile, ApplicationDocumentOptions, SavedOpportunity } from './types';
+import { MOCK_OPPORTUNITIES, Opportunity, User, Application, UserProfile, ApplicationDocumentOptions, MyOpportunities } from './types';
 import AdminDashboard from './components/admin/AdminDashboard';
 
 // Extracted Components
@@ -45,6 +45,13 @@ function homeViewFor(user: User): View {
   return user.role === 'professor' || user.role === 'admin' ? 'dashboard' : 'list';
 }
 
+const EMPTY_MY_OPPORTUNITIES: MyOpportunities = {
+  saved: [],
+  applied: [],
+  accepted: [],
+  rejected: [],
+};
+
 export default function App() {
   const initialRoute = parseRoute(window.location.pathname);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -54,7 +61,7 @@ export default function App() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES);
   const [applications, setApplications] = useState<Application[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [savedOpportunities, setSavedOpportunities] = useState<SavedOpportunity[]>([]);
+  const [myOpportunities, setMyOpportunities] = useState<MyOpportunities>(EMPTY_MY_OPPORTUNITIES);
   const [savedOpportunityIds, setSavedOpportunityIds] = useState<Set<string>>(new Set());
   const [view, setView] = useState<View>(initialRoute.view);
   
@@ -301,7 +308,7 @@ export default function App() {
     currentUserRef.current = null;
     setApplications([]);
     setProfile(null);
-    setSavedOpportunities([]);
+    setMyOpportunities(EMPTY_MY_OPPORTUNITIES);
     setSavedOpportunityIds(new Set());
     setShowUserMenu(false);
     setApplyModalOpen(false);
@@ -354,22 +361,29 @@ export default function App() {
     }
   };
 
-  const loadSavedOpportunities = async () => {
-    if (!currentUser) {
-      setSavedOpportunities([]);
+  const loadMyOpportunities = async (forUser?: typeof currentUser) => {
+    const user = forUser ?? currentUser;
+    if (!user || user.role !== 'student') {
+      setMyOpportunities(EMPTY_MY_OPPORTUNITIES);
       setSavedOpportunityIds(new Set());
-      return [];
+      return EMPTY_MY_OPPORTUNITIES;
     }
     try {
-      const res = await apiFetch('/api/profile/saved-opportunities');
-      if (!res.ok) return [];
+      const res = await apiFetch('/api/profile/my-opportunities');
+      if (!res.ok) return EMPTY_MY_OPPORTUNITIES;
       const json = await res.json();
-      const saved = Array.isArray(json.savedOpportunities) ? json.savedOpportunities as SavedOpportunity[] : [];
-      setSavedOpportunities(saved);
+      const data: MyOpportunities = {
+        saved: Array.isArray(json.saved) ? json.saved : [],
+        applied: Array.isArray(json.applied) ? json.applied : [],
+        accepted: Array.isArray(json.accepted) ? json.accepted : [],
+        rejected: Array.isArray(json.rejected) ? json.rejected : [],
+      };
+      setMyOpportunities(data);
+      const saved = data.saved;
       setSavedOpportunityIds(new Set(saved.map(item => item.opportunity.id)));
-      return saved;
+      return data;
     } catch {
-      return [];
+      return EMPTY_MY_OPPORTUNITIES;
     }
   };
 
@@ -458,9 +472,9 @@ export default function App() {
     if (currentUser) {
       loadApplications(currentUser);
       loadProfile();
-      loadSavedOpportunities();
+      loadMyOpportunities(currentUser);
     } else {
-      setSavedOpportunities([]);
+      setMyOpportunities(EMPTY_MY_OPPORTUNITIES);
       setSavedOpportunityIds(new Set());
     }
   }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -505,6 +519,11 @@ export default function App() {
     setApplyModalOpen(true);
   };
 
+  const applicationStatusForOpportunity = (opportunityId: string) => {
+    if (currentUser?.role !== 'student') return undefined;
+    return applications.find(app => app.opportunityId === opportunityId && app.studentId === currentUser.id)?.status;
+  };
+
   const handleBack = () => {
     setView('list');
     setSelectedOpportunity(null);
@@ -529,11 +548,20 @@ export default function App() {
 
   const saveOpportunityById = async (opportunityId: string) => {
     const res = await apiFetch(`/api/profile/saved-opportunities/${encodeURIComponent(opportunityId)}`, { method: 'POST' });
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
       throw new Error(json.error || 'Failed to save opportunity');
     }
+    if (json.alreadyApplied) {
+      setSavedOpportunityIds(prev => {
+        const next = new Set(prev);
+        next.delete(opportunityId);
+        return next;
+      });
+      return json;
+    }
     setSavedOpportunityIds(prev => new Set(prev).add(opportunityId));
+    return json;
   };
 
   const handleToggleSave = async (opp: Opportunity) => {
@@ -557,12 +585,16 @@ export default function App() {
           next.delete(opp.id);
           return next;
         });
-        setSavedOpportunities(prev => prev.filter(item => item.opportunity.id !== opp.id));
+        setMyOpportunities(prev => ({
+          ...prev,
+          saved: prev.saved.filter(item => item.opportunity.id !== opp.id),
+        }));
+        await loadMyOpportunities();
         showToast('Removed from saved opportunities');
       } else {
-        await saveOpportunityById(opp.id);
-        await loadSavedOpportunities();
-        showToast('Saved for later');
+        const json = await saveOpportunityById(opp.id);
+        await loadMyOpportunities();
+        showToast(json?.alreadyApplied ? `Already ${json.status || 'applied'}` : 'Saved for later');
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Could not update saved opportunity');
@@ -573,6 +605,7 @@ export default function App() {
     if (!pendingSaveOpportunityId) return;
     try {
       await saveOpportunityById(pendingSaveOpportunityId);
+      await loadMyOpportunities();
       const savedOpportunity = opportunities.find(opp => opp.id === pendingSaveOpportunityId)
         || (selectedOpportunity?.id === pendingSaveOpportunityId ? selectedOpportunity : null);
       if (savedOpportunity) {
@@ -649,6 +682,7 @@ export default function App() {
               totalPages={totalPages}
               handleCardClick={handleCardClick}
               savedOpportunityIds={savedOpportunityIds}
+              applicationStatusForOpportunity={applicationStatusForOpportunity}
               handleToggleSave={handleToggleSave}
               handleShareOpportunity={handleShareOpportunity}
             />
@@ -686,26 +720,25 @@ export default function App() {
               handleBack={handleBack}
               handleApplyClick={handleApplyClick}
               saved={savedOpportunityIds.has(selectedOpportunity.id)}
+              applicationStatus={applicationStatusForOpportunity(selectedOpportunity.id)}
               handleToggleSave={handleToggleSave}
               handleShareOpportunity={handleShareOpportunity}
             />
           ) : view === 'applications' && currentUser?.role === 'student' ? (
             <StudentApplications 
               currentUser={currentUser}
-              opportunities={opportunities}
               applications={applications}
+              myOpportunities={myOpportunities}
               setView={setView}
-              setSelectedOpportunity={setSelectedOpportunity}
+              onViewOpportunity={handleCardClick}
+              onApplyOpportunity={handleApplyClick}
+              onRemoveSavedOpportunity={handleToggleSave}
             />
           ) : view === 'profile' && currentUser ? (
             <ProfilePage
               currentUser={currentUser}
               setCurrentUser={setCurrentUser}
               setView={setView}
-              savedOpportunities={savedOpportunities}
-              onViewOpportunity={handleCardClick}
-              onApplyOpportunity={handleApplyClick}
-              onRemoveSavedOpportunity={handleToggleSave}
             />
           ) : view === 'notFound' ? (
             <div className="max-w-2xl mx-auto bg-white border border-gray-100 rounded-2xl shadow-sm p-8 text-center">
@@ -748,6 +781,12 @@ export default function App() {
             }
             await loadApplications(currentUser);
             await loadProfile();
+            await loadMyOpportunities(currentUser);
+            setSavedOpportunityIds(prev => {
+              const next = new Set(prev);
+              next.delete(selectedOpportunity.id);
+              return next;
+            });
             setApplyModalOpen(false);
           }}
           onClose={() => setApplyModalOpen(false)}
