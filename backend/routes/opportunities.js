@@ -3,6 +3,7 @@ const { all, run, get } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
 const { requireAuth, requireApprovedProfessor } = require('../middleware/auth');
 const { validateOpportunity, asString } = require('../utils/validation');
+const { deleteApplicationObjectsForOpportunity } = require('../utils/fileCleanup');
 
 const router = express.Router();
 
@@ -87,6 +88,7 @@ router.delete('/opportunities/:id', requireAuth, asyncHandler(async (req, res) =
   const isAdmin = req.user.role === 'admin';
   if (!isOwner && !isAdmin) throw httpError(403, 'Forbidden');
 
+  await deleteApplicationObjectsForOpportunity(req.params.id);
   await run('DELETE FROM applications WHERE opportunity_id = ?', [req.params.id]);
   await run('DELETE FROM opportunities WHERE id = ?', [req.params.id]);
   res.json({ ok: true });

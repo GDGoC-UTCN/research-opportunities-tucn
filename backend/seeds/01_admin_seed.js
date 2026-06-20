@@ -1,18 +1,29 @@
 const bcrypt = require('bcryptjs');
 
 exports.seed = async function(knex) {
-  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@utcn.edu';
-  const ADMIN_PASS = process.env.ADMIN_PASS || 'adminpass';
-  const ADMIN_NAME = process.env.ADMIN_NAME || 'UTCN Admin';
+  const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'AIRI@campus.utcluj.ro').trim().toLowerCase();
+  const ADMIN_PASS = process.env.ADMIN_INITIAL_PASSWORD || process.env.ADMIN_PASS;
+  const ADMIN_NAME = process.env.ADMIN_NAME || 'AIRi Admin';
+  const RESET_ADMIN_PASSWORD = process.env.RESET_ADMIN_PASSWORD === 'true';
 
-  // Check if admin already exists
-  const existing = await knex('users').where({ email: ADMIN_EMAIL }).first();
+  const existing = await knex('users').whereRaw('lower(email) = ?', [ADMIN_EMAIL]).first();
   if (existing) {
-    console.log('Admin already exists, skipping seed');
+    if (!RESET_ADMIN_PASSWORD) {
+      console.log('Admin already exists, skipping password reset');
+      return;
+    }
+    if (!ADMIN_PASS) throw new Error('RESET_ADMIN_PASSWORD=true requires ADMIN_INITIAL_PASSWORD');
+    const hashed = bcrypt.hashSync(ADMIN_PASS, 12);
+    await knex('users')
+      .where({ id: existing.id })
+      .update({ name: ADMIN_NAME, email: ADMIN_EMAIL, role: 'admin', password: hashed, approved: 1, updated_at: knex.fn.now() });
+    console.log('Admin password reset via knex:', ADMIN_EMAIL);
     return;
   }
 
-  const hashed = bcrypt.hashSync(ADMIN_PASS, 10);
+  if (!ADMIN_PASS) throw new Error('ADMIN_INITIAL_PASSWORD is required to seed a missing admin account');
+
+  const hashed = bcrypt.hashSync(ADMIN_PASS, 12);
   await knex('users').insert({ name: ADMIN_NAME, email: ADMIN_EMAIL, role: 'admin', password: hashed, approved: 1 });
   console.log('Admin seeded via knex:', ADMIN_EMAIL);
 };

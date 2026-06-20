@@ -3,6 +3,10 @@ const { all, run, get } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asString, isEmail } = require('../utils/validation');
+const {
+  deleteApplicationObjectsForProfessor,
+  deleteApplicationObjectsForStudent,
+} = require('../utils/fileCleanup');
 
 const router = express.Router();
 
@@ -38,7 +42,7 @@ router.post('/admin/approve', asyncHandler(async (req, res) => {
 
   const result = id
     ? await run("UPDATE users SET approved = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND role = 'professor'", [id])
-    : await run("UPDATE users SET approved = 1, updated_at = CURRENT_TIMESTAMP WHERE email = ? AND role = 'professor'", [email]);
+    : await run("UPDATE users SET approved = 1, updated_at = CURRENT_TIMESTAMP WHERE lower(email) = ? AND role = 'professor'", [email]);
 
   if (result.changes === 0) throw httpError(404, 'Professor not found');
   res.json({ ok: true });
@@ -54,13 +58,14 @@ router.delete('/admin/users/:key', asyncHandler(async (req, res) => {
   const asNum = Number(key);
   const target = Number.isInteger(asNum) && String(asNum) === key
     ? await get('SELECT id,email,role FROM users WHERE id = ?', [asNum])
-    : await get('SELECT id,email,role FROM users WHERE email = ?', [key.toLowerCase()]);
+    : await get('SELECT id,email,role FROM users WHERE lower(email) = ?', [key.toLowerCase()]);
 
   if (!target) throw httpError(404, 'User not found');
 
   try {
     await run('BEGIN');
     if (target.role === 'professor') {
+      await deleteApplicationObjectsForProfessor(String(target.id));
       await run(
         `DELETE FROM applications
          WHERE opportunity_id IN (SELECT id FROM opportunities WHERE author_id = ?)`,
@@ -68,6 +73,7 @@ router.delete('/admin/users/:key', asyncHandler(async (req, res) => {
       );
       await run('DELETE FROM opportunities WHERE author_id = ?', [String(target.id)]);
     } else if (target.role === 'student') {
+      await deleteApplicationObjectsForStudent(String(target.id));
       await run('DELETE FROM applications WHERE student_id = ?', [String(target.id)]);
     }
     await run('DELETE FROM users WHERE id = ?', [target.id]);

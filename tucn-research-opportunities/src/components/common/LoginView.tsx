@@ -29,7 +29,7 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row font-sans">
 
-      {/* ── Left Panel — UTCN Branding ── */}
+      {/* ── Left Panel — AIRi@UTCN Branding ── */}
       <div className="lg:w-[55%] bg-utcn-navy flex flex-col justify-center items-start p-10 lg:p-16 text-white relative overflow-hidden">
 
         {/* Decorative circles */}
@@ -42,13 +42,13 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
           <div className="flex items-center gap-4 mb-10">
             <Logo large />
             <div>
-              <p className="text-xs font-bold tracking-[0.2em] uppercase text-blue-300 mb-0.5">UTCN</p>
-              <p className="text-lg font-bold leading-none">Research Portal</p>
+              <p className="text-xs font-bold tracking-[0.2em] uppercase text-blue-300 mb-0.5">AIRi@UTCN</p>
+              <p className="text-lg font-bold leading-none">Research Opportunities</p>
             </div>
           </div>
 
           <h1 className="text-4xl lg:text-5xl font-extrabold leading-[1.15] tracking-tight mb-5">
-            Discover<br />
+            AIRi@UTCN<br />
             <span className="text-utcn-primary">Research</span><br />
             Opportunities
           </h1>
@@ -78,8 +78,8 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
           <div className="mt-12 pt-6 border-t border-white/10 flex items-center gap-3">
             <div className="w-1 h-8 bg-utcn-red rounded-full" />
             <div>
-              <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">Technical University of Cluj-Napoca</p>
-              <p className="text-xs text-white/40 mt-0.5">utcluj.ro · research.utcluj.ro</p>
+              <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">AIRi@UTCN</p>
+              <p className="text-xs text-white/40 mt-0.5">Technical University of Cluj-Napoca</p>
             </div>
           </div>
         </div>
@@ -95,17 +95,17 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
         >
           {/* Mobile-only logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-9 h-9 bg-utcn-navy rounded-lg flex items-center justify-center">
-              <img src="/favicon.svg" alt="UTCN" className="h-6 w-6 object-contain" />
+            <div className="w-24 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+              <img src="/airi.svg" alt="AIRi@UTCN" className="h-7 w-20 object-contain" />
             </div>
-            <span className="font-bold text-gray-900">UTCN Research Portal</span>
+            <span className="font-bold text-gray-900">Research Opportunities</span>
           </div>
 
           {/* If no role selected: show the two large Continue buttons */}
           {!selectedRole ? (
             <div className="space-y-3">
               <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome</h2>
-              <p className="text-gray-500 text-sm mb-6">Continue as a student or professor to proceed.</p>
+              <p className="text-gray-500 text-sm mb-6">Sign in to apply, post, or manage AIRi@UTCN opportunities.</p>
 
               <motion.button
                 whileHover={{ scale: 1.015 }}

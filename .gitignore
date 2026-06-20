@@ -1,0 +1,8 @@
+.DS_Store
+.env
+backend/.env
+docker-backups/
+*.sqlite
+node_modules/
+dist/
+build/

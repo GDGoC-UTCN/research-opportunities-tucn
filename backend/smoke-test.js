@@ -9,6 +9,8 @@ const PORT = Number(process.env.SMOKE_PORT || 4197);
 const BASE_URL = `http://localhost:${PORT}`;
 const DB_PATH = path.join(os.tmpdir(), `tucn-smoke-${process.pid}.sqlite`);
 const JWT_SECRET = process.env.JWT_SECRET || 'abcdefghijklmnopqrstuvwxyz1234567890';
+const LOCAL_STORAGE_DIR = path.join(os.tmpdir(), `tucn-smoke-uploads-${process.pid}`);
+const validPdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n');
 
 class CookieJar {
   constructor() {
@@ -89,6 +91,44 @@ async function request(method, route, jar, body) {
   return { response, json };
 }
 
+async function multipartRequest(route, jar, fields, files = {}) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    form.append(key, value);
+  }
+  for (const [field, file] of Object.entries(files)) {
+    form.append(field, new Blob([file.buffer], { type: file.type }), file.name);
+  }
+  const headers = new Headers();
+  if (jar?.header()) headers.set('Cookie', jar.header());
+  if (!jar.csrfToken) {
+    const csrfResponse = await fetch(`${BASE_URL}/api/csrf-token`, {
+      headers: jar.header() ? { Cookie: jar.header() } : undefined,
+    });
+    jar.store(csrfResponse.headers);
+    const csrfJson = await csrfResponse.json();
+    jar.csrfToken = csrfJson.csrfToken;
+    headers.set('Cookie', jar.header());
+  }
+  headers.set('X-CSRF-Token', jar.csrfToken);
+  const response = await fetch(`${BASE_URL}${route}`, {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+  jar?.store(response.headers);
+  const text = await response.text();
+  const json = text ? JSON.parse(text) : {};
+  return { response, json };
+}
+
+async function download(route, jar) {
+  const headers = jar?.header() ? { Cookie: jar.header() } : undefined;
+  const response = await fetch(`${BASE_URL}${route}`, { headers });
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return { response, buffer };
+}
+
 function assert(condition, message, detail) {
   if (!condition) throw new Error(`${message}${detail ? `: ${detail}` : ''}`);
 }
@@ -103,6 +143,9 @@ async function main() {
       JWT_SECRET,
       CORS_ORIGIN: 'http://localhost:3000',
       NODE_ENV: 'development',
+      STORAGE_PROVIDER: 'local',
+      LOCAL_STORAGE_DIR,
+      MAX_UPLOAD_MB: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -118,6 +161,7 @@ async function main() {
 
     const admin = new CookieJar();
     const student = new CookieJar();
+    const otherStudent = new CookieJar();
     const professor = new CookieJar();
     const otherProfessor = new CookieJar();
     const pendingProfessor = new CookieJar();
@@ -133,6 +177,13 @@ async function main() {
     result = await request('GET', '/api/me', student);
     assert(result.response.status === 200 && result.json.user.role === 'student', '/me should restore student');
     const studentId = result.json.user.id;
+
+    await request('POST', '/api/signup', otherStudent, {
+      name: 'Other Student',
+      email: 'student2@example.com',
+      password: 'studentpass123',
+      role: 'student',
+    });
 
     result = await request('POST', '/api/signup', pendingProfessor, {
       name: 'Pending Professor',
@@ -211,19 +262,75 @@ async function main() {
     assert(result.response.status === 201, 'professor should create opportunity');
     const opportunityId = result.json.id;
 
-    result = await request('POST', '/api/applications', student, {
+    result = await request('POST', '/api/opportunities', professor, {
+      title: 'Smoke Opportunity With CV',
+      description: 'Short description',
+      abstract: 'Research abstract',
+      duration: '1 month',
+      stipend: 'None',
+      tags: ['AI'],
+      applicationFields: [],
+      requireCv: true,
+    });
+    assert(result.response.status === 201, 'professor should create opportunity requiring CV');
+    const requiredCvOpportunityId = result.json.id;
+
+    result = await multipartRequest('/api/applications', student, {
       opportunityId,
       studentId: '999',
       studentName: 'Imposter',
       message: 'Please consider me',
-      answers: [],
+      answers: '[]',
+    });
+    assert(result.response.status === 400, 'student-sent identity fields should be rejected');
+
+    result = await multipartRequest('/api/applications', student, {
+      opportunityId,
+      message: 'Please consider me',
+      answers: '[]',
     });
     assert(result.response.status === 201, 'student should apply');
     const applicationId = result.json.id;
 
+    result = await multipartRequest('/api/applications', student, {
+      opportunityId: requiredCvOpportunityId,
+      message: 'Missing CV',
+      answers: '[]',
+    });
+    assert(result.response.status === 400, 'missing required CV should be rejected');
+
+    result = await multipartRequest('/api/applications', student, {
+      opportunityId: requiredCvOpportunityId,
+      message: 'Bad CV',
+      answers: '[]',
+    }, {
+      cv: { name: 'bad.txt', type: 'text/plain', buffer: Buffer.from('not a pdf') },
+    });
+    assert(result.response.status === 400, 'non-PDF upload should be rejected');
+
+    result = await multipartRequest('/api/applications', student, {
+      opportunityId: requiredCvOpportunityId,
+      message: 'Large CV',
+      answers: '[]',
+    }, {
+      cv: { name: 'large.pdf', type: 'application/pdf', buffer: Buffer.concat([Buffer.from('%PDF'), Buffer.alloc(1024 * 1024 + 1)]) },
+    });
+    assert(result.response.status === 400, 'oversized upload should be rejected');
+
+    result = await multipartRequest('/api/applications', student, {
+      opportunityId: requiredCvOpportunityId,
+      message: 'Please consider my PDF',
+      answers: JSON.stringify([]),
+    }, {
+      cv: { name: 'cv.pdf', type: 'application/pdf', buffer: validPdf },
+    });
+    assert(result.response.status === 201, 'student should apply with valid PDF');
+    const fileApplicationId = result.json.id;
+
     result = await request('GET', '/api/applications', student);
     assert(result.response.status === 200, 'student should list own applications');
     assert(result.json.applications[0].studentId === studentId && result.json.applications[0].studentName === 'Smoke Student', 'application should use authenticated student identity');
+    assert(result.json.applications.some(app => app.id === fileApplicationId && app.cvFile && !app.cvFile.dataUrl), 'new application should return file metadata without base64 data');
 
     await request('POST', '/api/signup', otherProfessor, {
       name: 'Other Professor',
@@ -240,6 +347,24 @@ async function main() {
     });
     assert(result.response.status === 200, 'other professor login should succeed');
 
+    let fileResult = await download(`/api/applications/${fileApplicationId}/files/cv`, student);
+    assert(fileResult.response.status === 200 && fileResult.buffer.subarray(0, 4).toString() === '%PDF', 'student can download own file');
+
+    fileResult = await download(`/api/applications/${fileApplicationId}/files/cv`, otherStudent);
+    assert(fileResult.response.status === 403, 'student cannot download another student file');
+
+    fileResult = await download(`/api/applications/${fileApplicationId}/files/cv`, professor);
+    assert(fileResult.response.status === 200, 'owner professor can download file');
+
+    fileResult = await download(`/api/applications/${fileApplicationId}/files/cv`, otherProfessor);
+    assert(fileResult.response.status === 403, 'non-owner professor cannot download file');
+
+    fileResult = await download(`/api/applications/${fileApplicationId}/files/cv`, admin);
+    assert(fileResult.response.status === 200, 'admin can download file');
+
+    fileResult = await download(`/api/applications/${fileApplicationId}/files/cv`);
+    assert(fileResult.response.status === 401, 'unauthenticated download should be rejected');
+
     result = await request('PATCH', `/api/applications/${applicationId}`, otherProfessor, {
       status: 'rejected',
       professorReply: 'No',
@@ -253,6 +378,7 @@ async function main() {
     assert(result.response.status === 200, 'owner professor can patch application');
 
     await request('DELETE', `/api/opportunities/${opportunityId}`, admin);
+    await request('DELETE', `/api/opportunities/${requiredCvOpportunityId}`, admin);
     result = await request('GET', '/api/applications', admin);
     assert(result.response.status === 200, 'admin can list applications after post deletion');
     assert(!result.json.applications.some(app => app.id === applicationId), 'admin post deletion should delete dependent applications');
@@ -269,6 +395,7 @@ async function main() {
   } finally {
     child.kill();
     fs.rmSync(DB_PATH, { force: true });
+    fs.rmSync(LOCAL_STORAGE_DIR, { recursive: true, force: true });
   }
 }
 

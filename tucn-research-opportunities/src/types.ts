@@ -54,7 +54,10 @@ export interface UploadedFile {
   name: string;
   size: number;       // bytes
   type: string;       // MIME
-  dataUrl: string;    // base64 data URL for in-memory preview / download
+  file?: File;        // selected browser file before upload
+  downloadUrl?: string;
+  dataUrl?: string;   // legacy base64 data URL for older rows only
+  legacy?: boolean;
 }
 
 export interface Application {
@@ -96,7 +99,7 @@ export const MOCK_PROFESSOR: User = {
 
 export const MOCK_ADMIN: User = {
   id: 'admin1',
-  name: 'UTCN Admin',
+  name: 'AIRi Admin',
   role: 'admin',
   avatar: 'https://picsum.photos/seed/admin/100/100',
   approved: true,

@@ -46,10 +46,47 @@ function initDb() {
       answers TEXT DEFAULT '[]',
       cv_file TEXT,
       transcript_file TEXT,
+      cv_file_key TEXT,
+      cv_file_name TEXT,
+      cv_file_size INTEGER,
+      cv_file_type TEXT,
+      transcript_file_key TEXT,
+      transcript_file_name TEXT,
+      transcript_file_size INTEGER,
+      transcript_file_type TEXT,
       professor_reply TEXT,
       reply_date TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    ensureApplicationFileColumns();
+  });
+}
+
+function ensureApplicationFileColumns() {
+  const columns = [
+    ['cv_file_key', 'TEXT'],
+    ['cv_file_name', 'TEXT'],
+    ['cv_file_size', 'INTEGER'],
+    ['cv_file_type', 'TEXT'],
+    ['transcript_file_key', 'TEXT'],
+    ['transcript_file_name', 'TEXT'],
+    ['transcript_file_size', 'INTEGER'],
+    ['transcript_file_type', 'TEXT'],
+  ];
+
+  db.all('PRAGMA table_info(applications)', [], (err, rows) => {
+    if (err) {
+      console.error('Failed to inspect applications table', err);
+      return;
+    }
+    const existing = new Set(rows.map(row => row.name));
+    for (const [name, type] of columns) {
+      if (!existing.has(name)) {
+        db.run(`ALTER TABLE applications ADD COLUMN ${name} ${type}`, alterErr => {
+          if (alterErr) console.error(`Failed to add applications.${name}`, alterErr);
+        });
+      }
+    }
   });
 }
 
