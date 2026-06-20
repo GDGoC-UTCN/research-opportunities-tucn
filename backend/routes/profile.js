@@ -4,7 +4,7 @@ const path = require('path');
 const multer = require('multer');
 const { all, get, run } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const { asString } = require('../utils/validation');
 const { putObject, getObjectStream, deleteObject } = require('../services/storage');
 
@@ -99,6 +99,17 @@ function mapOpportunity(row) {
       department: row.author_department,
       avatar: row.author_avatar,
     },
+  };
+}
+
+function mapApplicationSummary(row) {
+  return {
+    id: String(row.application_id),
+    opportunityId: String(row.id),
+    status: row.status,
+    date: row.application_created_at ? new Date(row.application_created_at).toLocaleDateString() : 'Today',
+    professorReply: row.professor_reply || undefined,
+    replyDate: row.reply_date || undefined,
   };
 }
 
@@ -241,11 +252,87 @@ router.get('/profile/saved-opportunities', requireAuth, asyncHandler(async (req,
   });
 }));
 
+router.get('/profile/my-opportunities', requireAuth, requireRole('student'), asyncHandler(async (req, res) => {
+  const savedRows = await all(
+    `SELECT saved_opportunities.id AS saved_id,
+            saved_opportunities.created_at AS saved_at,
+            opportunities.*
+     FROM saved_opportunities
+     JOIN opportunities ON opportunities.id = saved_opportunities.opportunity_id
+     WHERE saved_opportunities.user_id = ?
+       AND NOT EXISTS (
+         SELECT 1 FROM applications
+         WHERE applications.student_id = saved_opportunities.user_id
+           AND applications.opportunity_id = saved_opportunities.opportunity_id
+       )
+     ORDER BY saved_opportunities.created_at DESC`,
+    [String(req.user.id)]
+  );
+
+  const applicationRows = await all(
+    `SELECT opportunities.*,
+            applications.id AS application_id,
+            applications.status,
+            applications.created_at AS application_created_at,
+            applications.professor_reply,
+            applications.reply_date
+     FROM applications
+     JOIN opportunities ON opportunities.id = applications.opportunity_id
+     WHERE applications.student_id = ?
+     ORDER BY applications.created_at DESC`,
+    [String(req.user.id)]
+  );
+
+  const response = {
+    saved: savedRows.map(row => ({
+      id: String(row.saved_id),
+      savedAt: row.saved_at,
+      path: `/opportunities/${row.id}`,
+      opportunity: mapOpportunity(row),
+    })),
+    applied: [],
+    accepted: [],
+    rejected: [],
+  };
+
+  for (const row of applicationRows) {
+    const status = row.status === 'accepted' || row.status === 'rejected' ? row.status : 'pending';
+    const item = {
+      id: String(row.application_id),
+      path: `/opportunities/${row.id}`,
+      opportunity: mapOpportunity(row),
+      application: mapApplicationSummary(row),
+    };
+    if (status === 'accepted') response.accepted.push(item);
+    else if (status === 'rejected') response.rejected.push(item);
+    else response.applied.push(item);
+  }
+
+  res.json(response);
+}));
+
 router.post('/profile/saved-opportunities/:opportunityId', requireAuth, asyncHandler(async (req, res) => {
   const opportunityId = asString(req.params.opportunityId);
   if (!opportunityId) throw httpError(400, 'Missing opportunity id');
   const opportunity = await get('SELECT id FROM opportunities WHERE id = ?', [opportunityId]);
   if (!opportunity) throw httpError(404, 'Opportunity not found');
+
+  const application = await get(
+    'SELECT status FROM applications WHERE opportunity_id = ? AND student_id = ?',
+    [opportunityId, String(req.user.id)]
+  );
+  if (application) {
+    await run(
+      'DELETE FROM saved_opportunities WHERE user_id = ? AND opportunity_id = ?',
+      [String(req.user.id), opportunityId]
+    ).catch(() => {});
+    return res.json({
+      saved: false,
+      alreadyApplied: true,
+      status: application.status,
+      opportunityId: String(opportunity.id),
+    });
+  }
 
   await run(
     `INSERT INTO saved_opportunities (user_id, opportunity_id, created_at)

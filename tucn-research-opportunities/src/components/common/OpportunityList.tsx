@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, ChevronLeft, ChevronRight, Search, Filter, X } from 'lucide-react';
-import { Opportunity } from '../../types';
+import { ApplicationStatus, Opportunity } from '../../types';
 import OpportunityCard from '../OpportunityCard';
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
   totalPages: number;
   handleCardClick: (opp: Opportunity) => void;
   savedOpportunityIds: Set<string>;
+  applicationStatusForOpportunity: (opportunityId: string) => ApplicationStatus | undefined;
   handleToggleSave: (opp: Opportunity) => void;
   handleShareOpportunity: (opp: Opportunity) => void;
 }
@@ -38,6 +39,7 @@ export default function OpportunityList({
   totalPages,
   handleCardClick,
   savedOpportunityIds,
+  applicationStatusForOpportunity,
   handleToggleSave,
   handleShareOpportunity
 }: Props) {
@@ -188,6 +190,7 @@ export default function OpportunityList({
                 opportunity={opp}
                 onClick={() => handleCardClick(opp)}
                 saved={savedOpportunityIds.has(opp.id)}
+                applicationStatus={applicationStatusForOpportunity(opp.id)}
                 onToggleSave={handleToggleSave}
                 onShare={handleShareOpportunity}
               />

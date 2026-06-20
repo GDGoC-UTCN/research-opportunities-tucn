@@ -56,6 +56,30 @@ export interface SavedOpportunity {
   opportunity: Opportunity;
 }
 
+export interface MyOpportunityApplicationSummary {
+  id: string;
+  opportunityId: string;
+  status: ApplicationStatus;
+  date: string;
+  professorReply?: string;
+  replyDate?: string;
+}
+
+export interface MyOpportunityItem {
+  id: string;
+  path: string;
+  savedAt?: string;
+  opportunity: Opportunity;
+  application?: MyOpportunityApplicationSummary;
+}
+
+export interface MyOpportunities {
+  saved: MyOpportunityItem[];
+  applied: MyOpportunityItem[];
+  accepted: MyOpportunityItem[];
+  rejected: MyOpportunityItem[];
+}
+
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
 
 export interface ApplicationAnswer {

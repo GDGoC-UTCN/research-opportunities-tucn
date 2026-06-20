@@ -359,6 +359,13 @@ router.post('/applications', requireAuth, requireRole('student'), applicationUpl
       await saveProfileDocument(req.user.id, 'transcript', profileTranscriptCopy, profile?.transcript_file_key);
     }
 
+    await run(
+      'DELETE FROM saved_opportunities WHERE user_id = ? AND opportunity_id = ?',
+      [String(req.user.id), opportunityId]
+    ).catch(err => {
+      console.error('Failed to remove saved opportunity after application submission', err);
+    });
+
     return res.status(201).json({ id: applicationId });
   } catch (err) {
     const ownApplicationUploads = uploaded.filter(key => key.startsWith(`applications/${applicationId}/`));
