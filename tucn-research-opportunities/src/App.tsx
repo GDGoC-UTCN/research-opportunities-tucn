@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { MOCK_OPPORTUNITIES, Opportunity, User, Application, UserProfile, ApplicationDocumentOptions } from './types';
+import { MOCK_OPPORTUNITIES, Opportunity, User, Application, UserProfile, ApplicationDocumentOptions, SavedOpportunity } from './types';
 import AdminDashboard from './components/admin/AdminDashboard';
 
 // Extracted Components
@@ -16,7 +16,18 @@ import ApplicationModal from './components/student/ApplicationModal';
 import ProfilePage from './components/profile/ProfilePage';
 import { apiFetch, resetCsrfToken } from './api';
 
-type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile';
+type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile' | 'notFound';
+
+function parseRoute(pathname: string): { view: View; opportunityId?: string } {
+  if (pathname === '/login' || pathname === '/admin') return { view: 'login' };
+  if (pathname === '/profile') return { view: 'profile' };
+  if (pathname === '/applications') return { view: 'applications' };
+  if (pathname === '/create') return { view: 'create' };
+  if (pathname === '/opportunities' || pathname === '/') return { view: 'list' };
+  const match = pathname.match(/^\/opportunities\/([^/]+)$/);
+  if (match) return { view: 'detail', opportunityId: decodeURIComponent(match[1]) };
+  return { view: 'notFound' };
+}
 
 function normalizeUser(user: any): User {
   return {
@@ -35,13 +46,17 @@ function homeViewFor(user: User): View {
 }
 
 export default function App() {
+  const initialRoute = parseRoute(window.location.pathname);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const currentUserRef = useRef<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES);
   const [applications, setApplications] = useState<Application[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [view, setView] = useState<View>(() => window.location.pathname === '/login' || window.location.pathname === '/admin' ? 'login' : 'list');
+  const [savedOpportunities, setSavedOpportunities] = useState<SavedOpportunity[]>([]);
+  const [savedOpportunityIds, setSavedOpportunityIds] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<View>(initialRoute.view);
   
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,35 +68,49 @@ export default function App() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [pendingApplyOpportunityId, setPendingApplyOpportunityId] = useState<string | null>(null);
+  const [pendingSaveOpportunityId, setPendingSaveOpportunityId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    window.setTimeout(() => setToastMessage(''), 2500);
+  };
+
+  const pushPath = (path: string) => {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+  };
 
   const goToLogin = () => {
     setView('login');
     setShowUserMenu(false);
-    window.history.pushState({}, '', '/login');
+    pushPath('/login');
   };
 
   const goToList = () => {
     setView('list');
     setSelectedOpportunity(null);
     setShowUserMenu(false);
-    window.history.pushState({}, '', '/');
+    pushPath('/');
   };
 
   const continuePendingApply = (user: User, fallbackView: View) => {
     if (user.role === 'student' && pendingApplyOpportunityId) {
-      const pending = opportunities.find(opp => opp.id === pendingApplyOpportunityId);
+      const pending = opportunities.find(opp => opp.id === pendingApplyOpportunityId)
+        || (selectedOpportunity?.id === pendingApplyOpportunityId ? selectedOpportunity : null);
       if (pending) {
         setSelectedOpportunity(pending);
         setView('detail');
         setApplyModalOpen(true);
         setPendingApplyOpportunityId(null);
-        window.history.pushState({}, '', '/');
+        pushPath(`/opportunities/${encodeURIComponent(pending.id)}`);
         return;
       }
     }
 
     setView(fallbackView);
-    window.history.pushState({}, '', fallbackView === 'dashboard' && user.role === 'admin' ? '/admin' : '/');
+    pushPath(fallbackView === 'dashboard' && user.role === 'admin' ? '/admin' : '/');
   };
 
   const handleSignup = (data: { name: string; role: 'student' | 'professor' | 'admin'; department?: string; email?: string; password?: string }) => {
@@ -101,7 +130,9 @@ export default function App() {
         const newUser = normalizeUser(json.user || json);
         if (newUser.role === 'student') {
           setCurrentUser(newUser);
+          currentUserRef.current = newUser;
           continuePendingApply(newUser, 'list');
+          await completePendingSave();
         } else if (newUser.role === 'professor') {
           alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
         } else if (newUser.role === 'admin') {
@@ -141,8 +172,10 @@ export default function App() {
       }
       const cur = normalizeUser(user);
       setCurrentUser(cur);
+      currentUserRef.current = cur;
       const nextView = homeViewFor(cur);
       continuePendingApply(cur, nextView);
+      await completePendingSave();
       loadApplications(cur).catch(() => {});
       return cur;
     } catch (err) {
@@ -265,11 +298,15 @@ export default function App() {
     } catch { /* ignore */ }
     resetCsrfToken();
     setCurrentUser(null);
+    currentUserRef.current = null;
     setApplications([]);
     setProfile(null);
+    setSavedOpportunities([]);
+    setSavedOpportunityIds(new Set());
     setShowUserMenu(false);
     setApplyModalOpen(false);
     setPendingApplyOpportunityId(null);
+    setPendingSaveOpportunityId(null);
     goToList();
   };
 
@@ -317,36 +354,114 @@ export default function App() {
     }
   };
 
+  const loadSavedOpportunities = async () => {
+    if (!currentUser) {
+      setSavedOpportunities([]);
+      setSavedOpportunityIds(new Set());
+      return [];
+    }
+    try {
+      const res = await apiFetch('/api/profile/saved-opportunities');
+      if (!res.ok) return [];
+      const json = await res.json();
+      const saved = Array.isArray(json.savedOpportunities) ? json.savedOpportunities as SavedOpportunity[] : [];
+      setSavedOpportunities(saved);
+      setSavedOpportunityIds(new Set(saved.map(item => item.opportunity.id)));
+      return saved;
+    } catch {
+      return [];
+    }
+  };
+
+  const loadOpportunityById = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/opportunities/${encodeURIComponent(id)}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.opportunity) {
+        setSelectedOpportunity(null);
+        setView('notFound');
+        return null;
+      }
+      setSelectedOpportunity(json.opportunity);
+      setOpportunities(prev => prev.some(opp => opp.id === json.opportunity.id) ? prev : [json.opportunity, ...prev]);
+      setView('detail');
+      return json.opportunity as Opportunity;
+    } catch {
+      const local = opportunities.find(opp => opp.id === id);
+      if (local) {
+        setSelectedOpportunity(local);
+        setView('detail');
+        return local;
+      }
+      setSelectedOpportunity(null);
+      setView('notFound');
+      return null;
+    }
+  };
+
   useEffect(() => {
     (async () => {
+      let authenticatedUser: User | null = null;
       try {
         const res = await apiFetch('/api/me');
         if (res.ok) {
           const json = await res.json();
           const user = normalizeUser(json.user);
+          authenticatedUser = user;
           setCurrentUser(user);
+          currentUserRef.current = user;
           if (window.location.pathname === '/admin') {
             setView(user.role === 'admin' ? 'dashboard' : 'list');
             if (user.role !== 'admin') window.history.replaceState({}, '', '/');
           } else if (window.location.pathname === '/login') {
             setView(homeViewFor(user));
             window.history.replaceState({}, '', user.role === 'admin' ? '/admin' : '/');
+          } else if (window.location.pathname === '/profile') {
+            setView('profile');
           }
         }
       } catch {
         setCurrentUser(null);
-        if (window.location.pathname === '/admin') setView('login');
+        currentUserRef.current = null;
+        if (window.location.pathname === '/admin' || window.location.pathname === '/profile') setView('login');
       } finally {
+        const route = parseRoute(window.location.pathname);
+        if (route.opportunityId) {
+          await loadOpportunityById(route.opportunityId);
+        } else if (route.view === 'notFound') {
+          setView('notFound');
+        } else if (!authenticatedUser && ['profile', 'applications', 'create'].includes(route.view)) {
+          setView('login');
+          window.history.replaceState({}, '', '/login');
+        }
         setAuthChecked(true);
       }
     })();
     loadPostings();
+    const handlePopState = () => {
+      const route = parseRoute(window.location.pathname);
+      if (route.opportunityId) {
+        loadOpportunityById(route.opportunityId);
+      } else {
+        setSelectedOpportunity(null);
+        setApplyModalOpen(false);
+        if (['profile', 'applications', 'create'].includes(route.view) && !currentUserRef.current) setView('login');
+        else setView(route.view);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   useEffect(() => {
+    currentUserRef.current = currentUser;
     if (currentUser) {
       loadApplications(currentUser);
       loadProfile();
+      loadSavedOpportunities();
+    } else {
+      setSavedOpportunities([]);
+      setSavedOpportunityIds(new Set());
     }
   }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -364,12 +479,13 @@ export default function App() {
   const handleCardClick = (opp: Opportunity) => {
     setSelectedOpportunity(opp);
     setView('detail');
+    pushPath(`/opportunities/${encodeURIComponent(opp.id)}`);
     window.scrollTo(0, 0);
   };
 
   const handleApplyClick = (opp: Opportunity) => {
+    setSelectedOpportunity(opp);
     if (!currentUser) {
-      setSelectedOpportunity(opp);
       setPendingApplyOpportunityId(opp.id);
       goToLogin();
       return;
@@ -392,7 +508,84 @@ export default function App() {
   const handleBack = () => {
     setView('list');
     setSelectedOpportunity(null);
+    pushPath('/opportunities');
     window.scrollTo(0, 0);
+  };
+
+  const handleShareOpportunity = async (opp: Opportunity) => {
+    const url = `${window.location.origin}/opportunities/${encodeURIComponent(opp.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: opp.title, text: opp.description, url });
+        showToast('Link shared');
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied');
+    } catch {
+      window.prompt('Copy this link', url);
+    }
+  };
+
+  const saveOpportunityById = async (opportunityId: string) => {
+    const res = await apiFetch(`/api/profile/saved-opportunities/${encodeURIComponent(opportunityId)}`, { method: 'POST' });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error || 'Failed to save opportunity');
+    }
+    setSavedOpportunityIds(prev => new Set(prev).add(opportunityId));
+  };
+
+  const handleToggleSave = async (opp: Opportunity) => {
+    if (!currentUser) {
+      setPendingSaveOpportunityId(opp.id);
+      setSelectedOpportunity(opp);
+      goToLogin();
+      return;
+    }
+
+    const alreadySaved = savedOpportunityIds.has(opp.id);
+    try {
+      if (alreadySaved) {
+        const res = await apiFetch(`/api/profile/saved-opportunities/${encodeURIComponent(opp.id)}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.error || 'Failed to remove saved opportunity');
+        }
+        setSavedOpportunityIds(prev => {
+          const next = new Set(prev);
+          next.delete(opp.id);
+          return next;
+        });
+        setSavedOpportunities(prev => prev.filter(item => item.opportunity.id !== opp.id));
+        showToast('Removed from saved opportunities');
+      } else {
+        await saveOpportunityById(opp.id);
+        await loadSavedOpportunities();
+        showToast('Saved for later');
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Could not update saved opportunity');
+    }
+  };
+
+  const completePendingSave = async () => {
+    if (!pendingSaveOpportunityId) return;
+    try {
+      await saveOpportunityById(pendingSaveOpportunityId);
+      const savedOpportunity = opportunities.find(opp => opp.id === pendingSaveOpportunityId)
+        || (selectedOpportunity?.id === pendingSaveOpportunityId ? selectedOpportunity : null);
+      if (savedOpportunity) {
+        setSelectedOpportunity(savedOpportunity);
+        setView('detail');
+        pushPath(`/opportunities/${encodeURIComponent(savedOpportunity.id)}`);
+      }
+      showToast('Saved for later');
+    } catch {
+      showToast('Sign in complete. Please try saving again.');
+    } finally {
+      setPendingSaveOpportunityId(null);
+    }
   };
 
   const toggleTag = (tag: string) => {
@@ -455,6 +648,9 @@ export default function App() {
               setCurrentPage={setCurrentPage}
               totalPages={totalPages}
               handleCardClick={handleCardClick}
+              savedOpportunityIds={savedOpportunityIds}
+              handleToggleSave={handleToggleSave}
+              handleShareOpportunity={handleShareOpportunity}
             />
           ) : view === 'create' && currentUser?.role === 'professor' ? (
             <CreateOpportunity 
@@ -489,6 +685,9 @@ export default function App() {
               setView={setView}
               handleBack={handleBack}
               handleApplyClick={handleApplyClick}
+              saved={savedOpportunityIds.has(selectedOpportunity.id)}
+              handleToggleSave={handleToggleSave}
+              handleShareOpportunity={handleShareOpportunity}
             />
           ) : view === 'applications' && currentUser?.role === 'student' ? (
             <StudentApplications 
@@ -503,7 +702,19 @@ export default function App() {
               currentUser={currentUser}
               setCurrentUser={setCurrentUser}
               setView={setView}
+              savedOpportunities={savedOpportunities}
+              onViewOpportunity={handleCardClick}
+              onApplyOpportunity={handleApplyClick}
+              onRemoveSavedOpportunity={handleToggleSave}
             />
+          ) : view === 'notFound' ? (
+            <div className="max-w-2xl mx-auto bg-white border border-gray-100 rounded-2xl shadow-sm p-8 text-center">
+              <h1 className="text-xl font-bold text-gray-900">Opportunity not found</h1>
+              <p className="mt-2 text-sm text-gray-500">The opportunity link may be outdated or the post may have been removed.</p>
+              <button onClick={goToList} className="mt-5 px-4 py-2 rounded-xl bg-utcn-primary text-white text-sm font-semibold hover:bg-utcn-primary-dark">
+                Browse opportunities
+              </button>
+            </div>
           ) : null}
         </AnimatePresence>
       </main>
@@ -541,6 +752,12 @@ export default function App() {
           }}
           onClose={() => setApplyModalOpen(false)}
         />
+      )}
+
+      {toastMessage && (
+        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+          {toastMessage}
+        </div>
       )}
     </div>
   );

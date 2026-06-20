@@ -50,6 +50,12 @@ export interface UserProfile {
   transcriptFile?: UploadedFile;
 }
 
+export interface SavedOpportunity {
+  id: string;
+  savedAt: string;
+  opportunity: Opportunity;
+}
+
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
 
 export interface ApplicationAnswer {

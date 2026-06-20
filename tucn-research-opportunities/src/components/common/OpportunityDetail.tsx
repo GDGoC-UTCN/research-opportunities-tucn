@@ -10,6 +10,9 @@ interface Props {
   setView: (view: 'dashboard' | 'list') => void;
   handleBack: () => void;
   handleApplyClick: (opportunity: Opportunity) => void;
+  saved: boolean;
+  handleToggleSave: (opportunity: Opportunity) => void;
+  handleShareOpportunity: (opportunity: Opportunity) => void;
 }
 
 export default function OpportunityDetail({
@@ -18,7 +21,10 @@ export default function OpportunityDetail({
   applications,
   setView,
   handleBack,
-  handleApplyClick
+  handleApplyClick,
+  saved,
+  handleToggleSave,
+  handleShareOpportunity
 }: Props) {
   const hasApplied = applications.some(
     a => a.opportunityId === selectedOpportunity.id && a.studentId === currentUser?.id
@@ -175,10 +181,24 @@ export default function OpportunityDetail({
               View Applicants
             </button>
           )}
-          <button className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
-            <Bookmark size={15} /> Save
+          <button
+            type="button"
+            onClick={() => handleToggleSave(selectedOpportunity)}
+            className={`flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold transition-colors ${
+              saved
+                ? 'bg-blue-50 text-utcn-primary border border-blue-100 hover:bg-blue-100'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            aria-label={saved ? 'Remove from saved opportunities' : 'Save opportunity'}
+          >
+            <Bookmark size={15} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save'}
           </button>
-          <button className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+          <button
+            type="button"
+            onClick={() => handleShareOpportunity(selectedOpportunity)}
+            className="flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+            aria-label="Share opportunity"
+          >
             <Share2 size={15} /> Share
           </button>
         </div>

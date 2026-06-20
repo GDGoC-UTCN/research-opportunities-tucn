@@ -23,7 +23,9 @@ The main product identity is AIRi@UTCN Research Opportunities. The Technical Uni
 The opportunities dashboard is public:
 
 - `/` and `/opportunities` show the opportunity list without requiring an account.
-- Opportunity details are readable without signing in.
+- Each opportunity has a public dedicated URL at `/opportunities/:id`.
+- Opportunity details are readable without signing in and can be opened directly or after browser refresh.
+- Opportunity cards and detail pages include a Share action. It uses the Web Share API when available, otherwise it copies the dedicated opportunity link.
 - Applying redirects unauthenticated users to sign in or sign up, then returns student users to the selected opportunity.
 - `POST /api/applications` remains student-only and uses the authenticated `req.user.id`; client-sent student identity is ignored.
 - Professor, admin, application-management, file-download, and create-opportunity flows remain protected by backend RBAC.
@@ -36,9 +38,12 @@ Authenticated users can manage a profile with:
 - protected profile avatar stored in object storage;
 - protected default CV and transcript PDFs stored in object storage;
 - saved profile documents that students can attach to applications without re-uploading;
+- saved opportunities for later review or application;
 - per-application PDF uploads that can optionally be saved back to the student's profile.
 
 Profile storage uses the `user_profiles` table. SQLite stores only safe metadata and object keys. Object storage remains private, and downloads go through authenticated backend endpoints.
+
+Saved opportunities use the `saved_opportunities` table. Users can save or remove only their own saved rows. The profile page lists saved opportunities with View, Apply, and Remove actions; applying still requires a student account and uses the existing application document flow.
 
 ## PDF Upload Storage
 
@@ -100,7 +105,7 @@ Passwords and password hashes are never returned by the API.
 | `POST` | `/api/logout` | CSRF required |
 | `GET` | `/api/me` | Authenticated |
 | `GET` | `/api/opportunities` | Public |
-| `GET` | Opportunity detail UI | Public frontend view backed by public opportunities list |
+| `GET` | `/api/opportunities/:id` | Public safe opportunity detail |
 | `POST` | `/api/opportunities` | Approved professor only, CSRF required |
 | `DELETE` | `/api/opportunities/:id` | Owner professor or admin, CSRF required; deletes dependent applications |
 | `GET` | `/api/applications` | Authenticated; scoped by role |
@@ -117,12 +122,27 @@ Passwords and password hashes are never returned by the API.
 | `GET` | `/api/profile/documents/transcript` | Authenticated current user |
 | `DELETE` | `/api/profile/documents/cv` | Authenticated current user, CSRF required |
 | `DELETE` | `/api/profile/documents/transcript` | Authenticated current user, CSRF required |
+| `GET` | `/api/profile/saved-opportunities` | Authenticated current user |
+| `POST` | `/api/profile/saved-opportunities/:opportunityId` | Authenticated current user, CSRF required |
+| `DELETE` | `/api/profile/saved-opportunities/:opportunityId` | Authenticated current user, CSRF required |
 | `GET` | `/api/admin/users` | Admin only |
 | `GET` | `/api/admin/pending` | Admin only |
 | `POST` | `/api/admin/approve` | Admin only, CSRF required |
 | `DELETE` | `/api/admin/users/:key` | Admin only, CSRF required; cascades dependent data |
 
 Application listing is scoped server-side: students see only their own applications, professors see applications for their own opportunities, and admins see all applications.
+
+## Opportunity Links And Saved Opportunities
+
+Manual checks:
+
+1. Open `/` or `/opportunities` without logging in and confirm the public list loads.
+2. Open `/opportunities/<id>` directly in a fresh browser session and confirm the detail page loads without authentication.
+3. Use Share from a card or detail page and confirm the copied/shared URL opens the same public detail page.
+4. Click Save while logged out and confirm the app redirects to login; after successful login, the opportunity is saved.
+5. Log in as a student, save an opportunity, open My Profile, and confirm it appears under Saved Opportunities.
+6. Use View, Apply, and Remove from the saved opportunity row.
+7. Confirm professors and admins can browse/share/save, but application submission remains student-only.
 
 ## Environment Variables
 

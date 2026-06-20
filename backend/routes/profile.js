@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
 const multer = require('multer');
-const { get, run } = require('../db');
+const { all, get, run } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
 const { requireAuth } = require('../middleware/auth');
 const { asString } = require('../utils/validation');
@@ -66,6 +66,39 @@ function mapProfile(row, user) {
     avatar,
     cvFile,
     transcriptFile,
+  };
+}
+
+function parseJson(value, fallback) {
+  try {
+    const parsed = JSON.parse(value || '');
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function mapOpportunity(row) {
+  return {
+    id: String(row.id),
+    title: row.title,
+    description: row.description,
+    abstract: row.abstract,
+    stipend: row.stipend,
+    duration: row.duration,
+    deadline: row.deadline || 'December 31, 2026',
+    postDate: row.created_at ? new Date(row.created_at).toLocaleDateString() : 'Today',
+    tags: parseJson(row.tags, []),
+    applicationFields: parseJson(row.application_fields, []),
+    requireCv: !!row.require_cv,
+    requireTranscript: !!row.require_transcript,
+    requirements: { technical: ['To be specified'], eligibility: ['To be specified'] },
+    author: {
+      id: String(row.author_id),
+      name: row.author_name,
+      department: row.author_department,
+      avatar: row.author_avatar,
+    },
   };
 }
 
@@ -185,6 +218,53 @@ async function streamFile(res, key, name, type) {
 router.get('/profile', requireAuth, asyncHandler(async (req, res) => {
   const row = await getProfileRow(req.user.id);
   res.json({ profile: mapProfile(row, req.user) });
+}));
+
+router.get('/profile/saved-opportunities', requireAuth, asyncHandler(async (req, res) => {
+  const rows = await all(
+    `SELECT saved_opportunities.id AS saved_id,
+            saved_opportunities.created_at AS saved_at,
+            opportunities.*
+     FROM saved_opportunities
+     JOIN opportunities ON opportunities.id = saved_opportunities.opportunity_id
+     WHERE saved_opportunities.user_id = ?
+     ORDER BY saved_opportunities.created_at DESC`,
+    [String(req.user.id)]
+  );
+
+  res.json({
+    savedOpportunities: rows.map(row => ({
+      id: String(row.saved_id),
+      savedAt: row.saved_at,
+      opportunity: mapOpportunity(row),
+    })),
+  });
+}));
+
+router.post('/profile/saved-opportunities/:opportunityId', requireAuth, asyncHandler(async (req, res) => {
+  const opportunityId = asString(req.params.opportunityId);
+  if (!opportunityId) throw httpError(400, 'Missing opportunity id');
+  const opportunity = await get('SELECT id FROM opportunities WHERE id = ?', [opportunityId]);
+  if (!opportunity) throw httpError(404, 'Opportunity not found');
+
+  await run(
+    `INSERT INTO saved_opportunities (user_id, opportunity_id, created_at)
+     VALUES (?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(user_id, opportunity_id) DO NOTHING`,
+    [String(req.user.id), opportunityId]
+  );
+
+  res.status(201).json({ saved: true, opportunityId: String(opportunity.id) });
+}));
+
+router.delete('/profile/saved-opportunities/:opportunityId', requireAuth, asyncHandler(async (req, res) => {
+  const opportunityId = asString(req.params.opportunityId);
+  if (!opportunityId) throw httpError(400, 'Missing opportunity id');
+  await run(
+    'DELETE FROM saved_opportunities WHERE user_id = ? AND opportunity_id = ?',
+    [String(req.user.id), opportunityId]
+  );
+  res.json({ saved: false, opportunityId });
 }));
 
 router.patch('/profile', requireAuth, asyncHandler(async (req, res) => {

@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Camera, Download, FileText, Linkedin, Save, Trash2, Upload } from 'lucide-react';
-import { UploadedFile, User, UserProfile } from '../../types';
+import { ArrowLeft, Bookmark, Camera, Download, Eye, FileText, Linkedin, Save, Trash2, Upload } from 'lucide-react';
+import { Opportunity, SavedOpportunity, UploadedFile, User, UserProfile } from '../../types';
 import { apiFetch, downloadProtectedFile } from '../../api';
 
 interface Props {
   currentUser: User;
   setCurrentUser: (user: User) => void;
   setView: (view: 'list' | 'dashboard' | 'applications') => void;
+  savedOpportunities: SavedOpportunity[];
+  onViewOpportunity: (opportunity: Opportunity) => void;
+  onApplyOpportunity: (opportunity: Opportunity) => void;
+  onRemoveSavedOpportunity: (opportunity: Opportunity) => void;
 }
 
 const MAX_PDF_SIZE = 5 * 1024 * 1024;
@@ -96,7 +100,15 @@ function DocumentRow({
   );
 }
 
-export default function ProfilePage({ currentUser, setCurrentUser, setView }: Props) {
+export default function ProfilePage({
+  currentUser,
+  setCurrentUser,
+  setView,
+  savedOpportunities,
+  onViewOpportunity,
+  onApplyOpportunity,
+  onRemoveSavedOpportunity,
+}: Props) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [name, setName] = useState(currentUser.name);
   const [department, setDepartment] = useState(currentUser.department || '');
@@ -296,6 +308,52 @@ export default function ProfilePage({ currentUser, setCurrentUser, setView }: Pr
                 onDownload={() => downloadProtectedFile('/api/profile/documents/transcript', profile?.transcriptFile?.name || 'transcript.pdf')}
                 onDelete={() => deleteDocument('transcript')}
               />
+            </div>
+
+            <div className="border-t pt-6 space-y-4">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Saved Opportunities</h2>
+                <p className="text-sm text-gray-500 mt-1">Keep track of opportunities you want to revisit or apply to later.</p>
+              </div>
+              {savedOpportunities.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-slate-50 p-5 text-sm text-gray-500">
+                  No saved opportunities yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {savedOpportunities.map(saved => (
+                    <div key={saved.id} className="rounded-xl border border-gray-100 bg-white p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {saved.opportunity.tags.slice(0, 3).map(tag => (
+                              <span key={tag} className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-utcn-primary border border-blue-100">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                          <h3 className="mt-2 text-sm font-bold text-gray-900">{saved.opportunity.title}</h3>
+                          <p className="mt-1 text-xs text-gray-500 line-clamp-2">{saved.opportunity.description}</p>
+                          <div className="mt-2 text-xs text-gray-400">
+                            Deadline: <span className="font-semibold text-gray-600">{saved.opportunity.deadline}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 md:flex-shrink-0">
+                          <button type="button" onClick={() => onViewOpportunity(saved.opportunity)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 text-gray-700 text-xs font-semibold hover:bg-slate-100">
+                            <Eye size={14} /> View
+                          </button>
+                          <button type="button" onClick={() => onApplyOpportunity(saved.opportunity)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-utcn-primary text-white text-xs font-semibold hover:bg-utcn-primary-dark">
+                            <FileText size={14} /> Apply
+                          </button>
+                          <button type="button" onClick={() => onRemoveSavedOpportunity(saved.opportunity)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100">
+                            <Bookmark size={14} fill="currentColor" /> Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {(error || message) && (

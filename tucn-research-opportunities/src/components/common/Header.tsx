@@ -18,8 +18,9 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
     setView(view);
     setShowUserMenu(false);
     if (view === 'login') window.history.pushState({}, '', '/login');
-    if (view === 'list') window.history.pushState({}, '', '/');
+    if (view === 'list') window.history.pushState({}, '', '/opportunities');
     if (view === 'dashboard' && currentUser?.role === 'admin') window.history.pushState({}, '', '/admin');
+    if (view === 'profile') window.history.pushState({}, '', '/profile');
   };
 
   return (
@@ -62,7 +63,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                 <button onClick={() => navigate('list')} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
                   Browse
                 </button>
-                <button onClick={() => setView('applications')} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                <button onClick={() => { setView('applications'); window.history.pushState({}, '', '/applications'); }} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
                   My Applications
                 </button>
               </nav>
@@ -76,7 +77,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                   Browse
                 </button>
                 <button
-                  onClick={() => setView('create')}
+                  onClick={() => { setView('create'); window.history.pushState({}, '', '/create'); }}
                   className="text-sm bg-utcn-primary text-white hover:bg-utcn-primary-dark px-3 py-1.5 rounded-lg transition-colors font-semibold flex items-center gap-1.5 ml-1"
                 >
                   <Plus size={14} />
@@ -150,7 +151,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                       )}
                       {currentUser?.role === 'professor' && (
                         <>
-                          <button onClick={() => { setView('create'); setShowUserMenu(false); }} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">
+                          <button onClick={() => { setView('create'); setShowUserMenu(false); window.history.pushState({}, '', '/create'); }} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">
                             <Plus size={15} className="text-gray-400" /> Post Opportunity
                           </button>
                           <button onClick={() => navigate('dashboard')} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">
@@ -166,7 +167,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                           <button onClick={() => navigate('list')} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">
                             <School size={15} className="text-gray-400" /> Browse Opportunities
                           </button>
-                          <button onClick={() => { setView('applications'); setShowUserMenu(false); }} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">
+                          <button onClick={() => { setView('applications'); setShowUserMenu(false); window.history.pushState({}, '', '/applications'); }} className="w-full text-left flex items-center px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors gap-2.5">
                             <CheckCircle2 size={15} className="text-gray-400" /> My Applications
                           </button>
                         </>

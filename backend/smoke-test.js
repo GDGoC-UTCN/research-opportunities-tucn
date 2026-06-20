@@ -180,6 +180,7 @@ async function main() {
 
     const admin = new CookieJar();
     const student = new CookieJar();
+    const guest = new CookieJar();
     const otherStudent = new CookieJar();
     const professor = new CookieJar();
     const otherProfessor = new CookieJar();
@@ -386,6 +387,39 @@ async function main() {
     });
     assert(result.response.status === 201, 'professor should create opportunity');
     const opportunityId = result.json.id;
+
+    result = await request('GET', `/api/opportunities/${opportunityId}`, guest);
+    assert(result.response.status === 200 && result.json.opportunity.id === String(opportunityId), 'public opportunity detail should work');
+
+    result = await request('GET', '/api/opportunities/99999999', guest);
+    assert(result.response.status === 404, 'unknown opportunity detail should return 404');
+
+    result = await request('POST', `/api/profile/saved-opportunities/${opportunityId}`, guest);
+    assert(result.response.status === 401, 'unauthenticated user cannot save opportunity');
+
+    result = await request('POST', `/api/profile/saved-opportunities/${opportunityId}`, student);
+    assert(result.response.status === 201 && result.json.saved === true, 'student can save opportunity');
+
+    result = await request('POST', `/api/profile/saved-opportunities/${opportunityId}`, student);
+    assert(result.response.status === 201 && result.json.saved === true, 'saving opportunity should be idempotent');
+
+    result = await request('GET', '/api/profile/saved-opportunities', student);
+    assert(
+      result.response.status === 200 && result.json.savedOpportunities.some(item => item.opportunity.id === String(opportunityId)),
+      'student can list own saved opportunities'
+    );
+
+    result = await request('GET', '/api/profile/saved-opportunities', otherStudent);
+    assert(
+      result.response.status === 200 && !result.json.savedOpportunities.some(item => item.opportunity.id === String(opportunityId)),
+      'users cannot see another user saved opportunities'
+    );
+
+    result = await request('DELETE', `/api/profile/saved-opportunities/${opportunityId}`, student);
+    assert(result.response.status === 200 && result.json.saved === false, 'student can unsave opportunity');
+
+    result = await request('DELETE', `/api/profile/saved-opportunities/${opportunityId}`, student);
+    assert(result.response.status === 200 && result.json.saved === false, 'unsaving opportunity should be idempotent');
 
     result = await request('POST', '/api/opportunities', professor, {
       title: 'Smoke Opportunity With CV',
