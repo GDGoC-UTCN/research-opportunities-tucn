@@ -9,7 +9,7 @@ interface Props {
   applications: Application[];
   setView: (view: 'dashboard' | 'list') => void;
   handleBack: () => void;
-  setApplyModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  handleApplyClick: (opportunity: Opportunity) => void;
 }
 
 export default function OpportunityDetail({
@@ -18,7 +18,7 @@ export default function OpportunityDetail({
   applications,
   setView,
   handleBack,
-  setApplyModalOpen
+  handleApplyClick
 }: Props) {
   const hasApplied = applications.some(
     a => a.opportunityId === selectedOpportunity.id && a.studentId === currentUser?.id
@@ -146,12 +146,9 @@ export default function OpportunityDetail({
 
         {/* Action footer */}
         <div className="px-7 md:px-10 pb-8 flex flex-col sm:flex-row gap-3 border-t pt-6">
-          {currentUser?.role === 'student' && (
+          {(!currentUser || currentUser.role === 'student') && (
             <button
-              onClick={() => {
-                if (hasApplied) { alert("You've already applied for this opportunity!"); return; }
-                setApplyModalOpen(true);
-              }}
+              onClick={() => handleApplyClick(selectedOpportunity)}
               disabled={hasApplied}
               className={`flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-semibold text-sm transition-all ${
                 hasApplied
@@ -159,7 +156,15 @@ export default function OpportunityDetail({
                   : 'bg-utcn-primary text-white hover:bg-utcn-primary-dark shadow-md shadow-blue-100'
               }`}
             >
-              {hasApplied ? <><CheckCircle2 size={16} /> Applied</> : 'Apply Now'}
+              {hasApplied ? <><CheckCircle2 size={16} /> Applied</> : currentUser ? 'Apply Now' : 'Apply / Sign in'}
+            </button>
+          )}
+          {currentUser && currentUser.role !== 'student' && !(currentUser.role === 'professor' && selectedOpportunity.author.id === currentUser.id) && (
+            <button
+              onClick={() => alert('Only student accounts can apply to opportunities.')}
+              className="flex-1 bg-gray-100 text-gray-500 py-3 px-6 rounded-xl font-semibold text-sm cursor-default"
+            >
+              Student applications only
             </button>
           )}
           {currentUser?.role === 'professor' && selectedOpportunity.author.id === currentUser.id && (

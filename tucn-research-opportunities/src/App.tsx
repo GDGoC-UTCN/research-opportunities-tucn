@@ -39,7 +39,7 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [view, setView] = useState<View>('login');
+  const [view, setView] = useState<View>(() => window.location.pathname === '/login' || window.location.pathname === '/admin' ? 'login' : 'list');
   
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,6 +50,37 @@ export default function App() {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [pendingApplyOpportunityId, setPendingApplyOpportunityId] = useState<string | null>(null);
+
+  const goToLogin = () => {
+    setView('login');
+    setShowUserMenu(false);
+    window.history.pushState({}, '', '/login');
+  };
+
+  const goToList = () => {
+    setView('list');
+    setSelectedOpportunity(null);
+    setShowUserMenu(false);
+    window.history.pushState({}, '', '/');
+  };
+
+  const continuePendingApply = (user: User, fallbackView: View) => {
+    if (user.role === 'student' && pendingApplyOpportunityId) {
+      const pending = opportunities.find(opp => opp.id === pendingApplyOpportunityId);
+      if (pending) {
+        setSelectedOpportunity(pending);
+        setView('detail');
+        setApplyModalOpen(true);
+        setPendingApplyOpportunityId(null);
+        window.history.pushState({}, '', '/');
+        return;
+      }
+    }
+
+    setView(fallbackView);
+    window.history.pushState({}, '', fallbackView === 'dashboard' && user.role === 'admin' ? '/admin' : '/');
+  };
 
   const handleSignup = (data: { name: string; role: 'student' | 'professor' | 'admin'; department?: string; email?: string; password?: string }) => {
     // Call backend API to create the user
@@ -68,8 +99,7 @@ export default function App() {
         const newUser = normalizeUser(json.user || json);
         if (newUser.role === 'student') {
           setCurrentUser(newUser);
-          setView('list');
-          window.history.pushState({}, '', '/');
+          continuePendingApply(newUser, 'list');
         } else if (newUser.role === 'professor') {
           alert('Professor account created and pending admin approval. An admin must approve the account before you can post.');
         } else if (newUser.role === 'admin') {
@@ -110,8 +140,7 @@ export default function App() {
       const cur = normalizeUser(user);
       setCurrentUser(cur);
       const nextView = homeViewFor(cur);
-      setView(nextView);
-      window.history.pushState({}, '', '/');
+      continuePendingApply(cur, nextView);
       loadApplications(cur).catch(() => {});
       return cur;
     } catch (err) {
@@ -236,8 +265,9 @@ export default function App() {
     setCurrentUser(null);
     setApplications([]);
     setShowUserMenu(false);
-    setView('login');
-    window.history.pushState({}, '', '/login');
+    setApplyModalOpen(false);
+    setPendingApplyOpportunityId(null);
+    goToList();
   };
 
   const loadPostings = async () => {
@@ -276,17 +306,17 @@ export default function App() {
           const json = await res.json();
           const user = normalizeUser(json.user);
           setCurrentUser(user);
-          setView(homeViewFor(user));
-          if (window.location.pathname === '/login') {
-            window.history.replaceState({}, '', '/');
+          if (window.location.pathname === '/admin') {
+            setView(user.role === 'admin' ? 'dashboard' : 'list');
+            if (user.role !== 'admin') window.history.replaceState({}, '', '/');
+          } else if (window.location.pathname === '/login') {
+            setView(homeViewFor(user));
+            window.history.replaceState({}, '', user.role === 'admin' ? '/admin' : '/');
           }
-        } else if (window.location.pathname !== '/login' && window.location.pathname !== '/admin') {
-          window.history.replaceState({}, '', '/login');
         }
       } catch {
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/admin') {
-          window.history.replaceState({}, '', '/login');
-        }
+        setCurrentUser(null);
+        if (window.location.pathname === '/admin') setView('login');
       } finally {
         setAuthChecked(true);
       }
@@ -313,6 +343,28 @@ export default function App() {
     setSelectedOpportunity(opp);
     setView('detail');
     window.scrollTo(0, 0);
+  };
+
+  const handleApplyClick = (opp: Opportunity) => {
+    if (!currentUser) {
+      setSelectedOpportunity(opp);
+      setPendingApplyOpportunityId(opp.id);
+      goToLogin();
+      return;
+    }
+
+    if (currentUser.role !== 'student') {
+      alert('Only student accounts can apply to opportunities.');
+      return;
+    }
+
+    const hasApplied = applications.some(a => a.opportunityId === opp.id && a.studentId === currentUser.id);
+    if (hasApplied) {
+      alert("You've already applied for this opportunity!");
+      return;
+    }
+
+    setApplyModalOpen(true);
   };
 
   const handleBack = () => {
@@ -414,7 +466,7 @@ export default function App() {
               applications={applications}
               setView={setView}
               handleBack={handleBack}
-              setApplyModalOpen={setApplyModalOpen}
+              handleApplyClick={handleApplyClick}
             />
           ) : view === 'applications' && currentUser?.role === 'student' ? (
             <StudentApplications 

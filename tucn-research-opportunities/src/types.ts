@@ -99,7 +99,7 @@ export const MOCK_PROFESSOR: User = {
 
 export const MOCK_ADMIN: User = {
   id: 'admin1',
-  name: 'UTCN Admin',
+  name: 'AIRi Admin',
   role: 'admin',
   avatar: 'https://picsum.photos/seed/admin/100/100',
   approved: true,

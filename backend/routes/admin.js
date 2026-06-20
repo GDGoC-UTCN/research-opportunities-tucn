@@ -42,7 +42,7 @@ router.post('/admin/approve', asyncHandler(async (req, res) => {
 
   const result = id
     ? await run("UPDATE users SET approved = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND role = 'professor'", [id])
-    : await run("UPDATE users SET approved = 1, updated_at = CURRENT_TIMESTAMP WHERE email = ? AND role = 'professor'", [email]);
+    : await run("UPDATE users SET approved = 1, updated_at = CURRENT_TIMESTAMP WHERE lower(email) = ? AND role = 'professor'", [email]);
 
   if (result.changes === 0) throw httpError(404, 'Professor not found');
   res.json({ ok: true });
@@ -58,7 +58,7 @@ router.delete('/admin/users/:key', asyncHandler(async (req, res) => {
   const asNum = Number(key);
   const target = Number.isInteger(asNum) && String(asNum) === key
     ? await get('SELECT id,email,role FROM users WHERE id = ?', [asNum])
-    : await get('SELECT id,email,role FROM users WHERE email = ?', [key.toLowerCase()]);
+    : await get('SELECT id,email,role FROM users WHERE lower(email) = ?', [key.toLowerCase()]);
 
   if (!target) throw httpError(404, 'User not found');
 

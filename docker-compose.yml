@@ -36,6 +36,10 @@ services:
       - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-minioadmin123}
       - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-true}
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-5}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-AIRI@campus.utcluj.ro}
+      - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-}
+      - ADMIN_NAME=${ADMIN_NAME:-AIRi Admin}
+      - RESET_ADMIN_PASSWORD=${RESET_ADMIN_PASSWORD:-false}
     volumes:
       - tucn_api_data:/data
     depends_on:
@@ -81,7 +85,10 @@ services:
       - NODE_ENV=${NODE_ENV:-development}
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env or your shell}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8080}
-      - ADMIN_PASS=adminpass
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-AIRI@campus.utcluj.ro}
+      - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-}
+      - ADMIN_NAME=${ADMIN_NAME:-AIRi Admin}
+      - RESET_ADMIN_PASSWORD=${RESET_ADMIN_PASSWORD:-false}
       - ALEX_PASS=studentpass
       - MARIA_PASS=studentpass2
       - PROF_PASS=profpass

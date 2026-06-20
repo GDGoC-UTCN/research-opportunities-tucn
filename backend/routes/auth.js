@@ -53,7 +53,7 @@ router.post('/login', authLimiter, asyncHandler(async (req, res) => {
 
   const email = asString(req.body.email).toLowerCase();
   const expectedRole = asString(req.body.role);
-  const row = await get('SELECT id,name,email,role,department,password,approved FROM users WHERE email = ?', [email]);
+  const row = await get('SELECT id,name,email,role,department,password,approved FROM users WHERE lower(email) = ?', [email]);
   if (!row || !bcrypt.compareSync(req.body.password, row.password)) {
     throw httpError(401, 'Invalid credentials');
   }

@@ -11,15 +11,15 @@ export default function Footer() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <img src="/favicon.svg" alt="UTCN" className="h-5 w-5 object-contain" />
+                <img src="/airi.svg" alt="AIRi@UTCN" className="h-5 w-7 object-contain" />
               </div>
               <div>
-                <p className="text-[10px] font-bold tracking-widest uppercase text-blue-300">UTCN</p>
-                <p className="text-sm font-bold leading-none">Research Portal</p>
+                <p className="text-[10px] font-bold tracking-widest uppercase text-blue-300">AIRi@UTCN</p>
+                <p className="text-sm font-bold leading-none">Research Opportunities</p>
               </div>
             </div>
             <p className="text-sm text-blue-200 leading-relaxed max-w-xs">
-              The official research opportunities platform of the Technical University of Cluj-Napoca, connecting students with professors and cutting-edge projects.
+              AIRi@UTCN research opportunities at the Technical University of Cluj-Napoca, connecting students with professors and applied AI projects.
             </p>
           </div>
 
@@ -52,7 +52,7 @@ export default function Footer() {
               </li>
               <li>
                 <span className="text-white/50 text-xs uppercase tracking-wider block mb-0.5">Email</span>
-                <a href="mailto:research@utcluj.ro" className="hover:text-white transition-colors">research@utcluj.ro</a>
+                <a href="mailto:AIRI@campus.utcluj.ro" className="hover:text-white transition-colors">AIRI@campus.utcluj.ro</a>
               </li>
               <li>
                 <span className="text-white/50 text-xs uppercase tracking-wider block mb-0.5">Website</span>
