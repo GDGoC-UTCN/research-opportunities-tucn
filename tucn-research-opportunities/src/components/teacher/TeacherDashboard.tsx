@@ -3,18 +3,21 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, ChevronDown, Users, FileText } from 'lucide-react';
 import { Opportunity, Application, User } from '../../types';
 import { downloadApplicationFile } from '../../api';
+import EditOpportunity from './EditOpportunity';
 
 interface Props {
   currentUser: User;
   opportunities: Opportunity[];
   applications: Application[];
   updateApplicationStatus: (appId: string, status: 'accepted' | 'rejected', professorReply: string) => Promise<void>;
-  setView: (view: 'create' | 'detail') => void;
+  setOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
+  setView: (view: 'create' | 'detail' | 'dashboard' | 'list') => void;
 }
 
-export default function TeacherDashboard({ currentUser, opportunities, applications, updateApplicationStatus, setView }: Props) {
+export default function TeacherDashboard({ currentUser, opportunities, applications, updateApplicationStatus, setOpportunities, setView }: Props) {
   const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
   const [replyMessages, setReplyMessages] = useState<Record<string, string>>({});
+  const [editOpportunityId, setEditOpportunityId] = useState<string | null>(null);
 
   const myOpps = opportunities.filter(o => o.author.id === currentUser.id);
   const totalApplicants = applications.filter(a => myOpps.some(o => o.id === a.opportunityId)).length;
@@ -24,6 +27,21 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
     rejected:  'bg-red-100 text-red-600 border border-red-200',
     pending:   'bg-amber-100 text-amber-700 border border-amber-200',
   };
+
+  if (editOpportunityId) {
+    const oppToEdit = opportunities.find(o => o.id === editOpportunityId);
+    if (oppToEdit) {
+      return (
+        <EditOpportunity
+          currentUser={currentUser}
+          opportunityToEdit={oppToEdit}
+          setOpportunities={setOpportunities}
+          setView={setView}
+          onClose={() => setEditOpportunityId(null)}
+        />
+      );
+    }
+  }
 
   return (
     <motion.div
@@ -71,6 +89,17 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                       <p className="text-gray-500 text-sm mt-1 line-clamp-1">{opp.description}</p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      {opp.status === 'archived' && (
+                        <span className="bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
+                          Archived
+                        </span>
+                      )}
+                      <button
+                        onClick={() => setEditOpportunityId(opp.id)}
+                        className="text-gray-400 hover:text-utcn-primary transition-colors px-2 py-1"
+                      >
+                        Edit
+                      </button>
                       <span className="bg-blue-50 text-utcn-primary border border-blue-100 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
                         <Users size={11} />
                         {oppApps.length} Applicant{oppApps.length !== 1 ? 's' : ''}

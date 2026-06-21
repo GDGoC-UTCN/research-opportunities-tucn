@@ -209,8 +209,8 @@ export default function App() {
       // if id is numeric string, send as number; otherwise include the user's email so backend can match
       const user = users.find(u => u.id === id);
       const payload: any = {};
-      const asNum = Number(id);
-      if (!Number.isNaN(asNum) && String(asNum) === String(id)) payload.id = asNum; else if (user && user.email) payload.email = user.email; else payload.id = id;
+      if (user && user.email) payload.email = user.email;
+      else payload.id = String(id);
       const res = await apiFetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -699,6 +699,7 @@ export default function App() {
               opportunities={opportunities}
               applications={applications}
               updateApplicationStatus={updateApplicationStatus}
+              setOpportunities={setOpportunities}
               setView={setView}
             />
           ) : view === 'dashboard' && currentUser?.role === 'admin' ? (

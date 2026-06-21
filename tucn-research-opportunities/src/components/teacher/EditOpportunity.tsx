@@ -6,18 +6,20 @@ import { apiFetch } from '../../api';
 
 interface Props {
   currentUser: User;
-  opportunities: Opportunity[];
+  opportunityToEdit: Opportunity;
   setOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
   setView: (view: 'dashboard' | 'list') => void;
+  onClose: () => void;
 }
 
-export default function CreateOpportunity({ currentUser, opportunities, setOpportunities, setView }: Props) {
-  const [newOppFields, setNewOppFields] = useState<ApplicationField[]>([]);
+export default function EditOpportunity({ currentUser, opportunityToEdit, setOpportunities, setView, onClose }: Props) {
+  const [newOppFields, setNewOppFields] = useState<ApplicationField[]>(opportunityToEdit.applicationFields || []);
   const [newFieldQuestion, setNewFieldQuestion] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(opportunityToEdit.tags || []);
   const [newTag, setNewTag] = useState('');
-  const [requireCv, setRequireCv] = useState(false);
-  const [requireTranscript, setRequireTranscript] = useState(false);
+  const [requireCv, setRequireCv] = useState(opportunityToEdit.requireCv || false);
+  const [requireTranscript, setRequireTranscript] = useState(opportunityToEdit.requireTranscript || false);
+  const [status, setStatus] = useState(opportunityToEdit.status || 'active');
 
   const addField = () => {
     if (newFieldQuestion.trim() && newOppFields.length < 20) {
@@ -37,56 +39,46 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const newOpp: Opportunity = {
-      id: Date.now().toString(),
+    const updatedOpp: Opportunity = {
+      ...opportunityToEdit,
       title:       formData.get('title') as string,
       abstract:    formData.get('abstract') as string,
       description: formData.get('description') as string,
       stipend:     formData.get('stipend') as string,
       duration:    formData.get('duration') as string,
-      deadline:    'December 31, 2026',
-      postDate:    'Today',
-      tags:        tags.length > 0 ? tags : ['NEW', 'RESEARCH'],
-      requirements: { technical: ['To be specified'], eligibility: ['To be specified'] },
+      tags,
       applicationFields: newOppFields,
-  requireCv,
-  requireTranscript,
-      author: {
-        id:         currentUser.id,
-        name:       currentUser.name,
-        department: currentUser.department || 'General',
-        avatar:     currentUser.avatar,
-      },
+      requireCv,
+      requireTranscript,
+      status,
     };
 
     try {
-      const response = await apiFetch('/api/opportunities', {
-        method: 'POST',
+      const response = await apiFetch(`/api/opportunities/${opportunityToEdit.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: newOpp.title,
-          description: newOpp.description,
-          abstract: newOpp.abstract,
-          stipend: newOpp.stipend,
-          duration: newOpp.duration,
-          deadline: newOpp.deadline,
-          tags: newOpp.tags,
-          applicationFields: newOpp.applicationFields,
-          requireCv: newOpp.requireCv,
-          requireTranscript: newOpp.requireTranscript,
+          title: updatedOpp.title,
+          description: updatedOpp.description,
+          abstract: updatedOpp.abstract,
+          stipend: updatedOpp.stipend,
+          duration: updatedOpp.duration,
+          tags: updatedOpp.tags,
+          applicationFields: updatedOpp.applicationFields,
+          requireCv: updatedOpp.requireCv,
+          requireTranscript: updatedOpp.requireTranscript,
+          status: updatedOpp.status,
         }),
       });
       const json = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(json.error || 'Failed to publish opportunity');
-      if (json.id) newOpp.id = String(json.id);
+      if (!response.ok) throw new Error(json.error || 'Failed to update opportunity');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to publish opportunity');
+      alert(err instanceof Error ? err.message : 'Failed to update opportunity');
       return;
     }
 
-    setOpportunities(prev => [newOpp, ...prev]);
-    setNewOppFields([]);
-    setView('dashboard');
+    setOpportunities(prev => prev.map(o => o.id === updatedOpp.id ? updatedOpp : o));
+    onClose();
   };
 
   const inputClass = 'w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-utcn-primary focus:border-transparent outline-none transition bg-white placeholder:text-gray-300';
@@ -102,7 +94,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
     >
       {/* Back nav */}
       <button
-        onClick={() => setView('dashboard')}
+        onClick={onClose}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-utcn-primary mb-5 transition-colors group"
       >
         <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -112,8 +104,8 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-utcn-navy to-utcn-primary px-8 py-7 text-white">
-          <h1 className="text-xl font-bold">Post a New Research Opportunity</h1>
-          <p className="text-blue-200 text-sm mt-1">Fill in the details below. Students will see this on the board.</p>
+          <h1 className="text-xl font-bold">Edit Research Opportunity</h1>
+          <p className="text-blue-200 text-sm mt-1">Update your existing project details.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-7 md:p-8 space-y-5">
@@ -121,30 +113,30 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
           {/* Title */}
           <div>
             <label className={labelClass}>Title <span className="text-red-400">*</span></label>
-            <input name="title" required type="text" placeholder="e.g. Deep Learning for Medical Imaging" className={inputClass} />
+            <input name="title" defaultValue={opportunityToEdit.title} required type="text" placeholder="e.g. Deep Learning for Medical Imaging" className={inputClass} />
           </div>
 
           {/* Short Description */}
           <div>
             <label className={labelClass}>Short Description <span className="text-red-400">*</span></label>
-            <input name="description" required type="text" placeholder="A one-line summary for the card view" className={inputClass} />
+            <input name="description" defaultValue={opportunityToEdit.description} required type="text" placeholder="A one-line summary for the card view" className={inputClass} />
           </div>
 
           {/* Abstract */}
           <div>
             <label className={labelClass}>Full Abstract <span className="text-red-400">*</span></label>
-            <textarea name="abstract" required rows={4} placeholder="Describe the research project in detail…" className={`${inputClass} resize-none`} />
+            <textarea name="abstract" defaultValue={opportunityToEdit.abstract} required rows={4} placeholder="Describe the research project in detail…" className={`${inputClass} resize-none`} />
           </div>
 
           {/* Duration + Stipend */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Duration <span className="text-red-400">*</span></label>
-              <input name="duration" required type="text" placeholder="e.g. 6 Months" className={inputClass} />
+              <input name="duration" defaultValue={opportunityToEdit.duration} required type="text" placeholder="e.g. 6 Months" className={inputClass} />
             </div>
             <div>
               <label className={labelClass}>Stipend / Funding <span className="text-red-400">*</span></label>
-              <input name="stipend" required type="text" placeholder="e.g. Unpaid or €1,000" className={inputClass} />
+              <input name="stipend" defaultValue={opportunityToEdit.stipend} required type="text" placeholder="e.g. Unpaid or €1,000" className={inputClass} />
             </div>
           </div>
 
@@ -259,17 +251,32 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
             </div>
           </div>
 
+          {/* Status */}
+          <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
+            <p className="text-sm font-semibold text-gray-700">Visibility Status</p>
+            <div className="flex gap-4 items-center">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="status" checked={status === 'active'} onChange={() => setStatus('active')} className="h-4 w-4 text-utcn-primary" />
+                <span>Active (Publicly visible)</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="status" checked={status === 'archived'} onChange={() => setStatus('archived')} className="h-4 w-4 text-red-500" />
+                <span className="text-red-600 font-medium">Archived (Hidden from students)</span>
+              </label>
+            </div>
+          </div>
+
           {/* Submit */}
           <div className="pt-5 border-t border-gray-100 flex items-center gap-3">
             <button
               type="submit"
               className="bg-utcn-primary text-white px-7 py-3 rounded-xl font-semibold text-sm hover:bg-utcn-primary-dark transition-colors shadow-md shadow-blue-100"
             >
-              Publish Opportunity
+              Save Changes
             </button>
             <button
               type="button"
-              onClick={() => setView('dashboard')}
+              onClick={onClose}
               className="px-5 py-3 rounded-xl font-semibold text-sm text-gray-600 hover:bg-gray-100 transition-colors"
             >
               Cancel
