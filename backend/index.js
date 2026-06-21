@@ -13,6 +13,7 @@ const notificationRoutes = require('./routes/notifications');
 const questionRoutes = require('./routes/questions');
 const professorRoutes = require('./routes/professors');
 const recommendationRoutes = require('./routes/recommendations');
+const professorApplicationRoutes = require('./routes/professorApplications');
 const { issueCsrfToken, requireCsrf } = require('./middleware/csrf');
 const { notFound, errorHandler } = require('./utils/errors');
 
@@ -111,6 +112,7 @@ router.use(notificationRoutes);
 router.use(questionRoutes);
 router.use(professorRoutes);
 router.use(recommendationRoutes);
+router.use(professorApplicationRoutes);
 
 app.use(router);
 app.use('/api', router);

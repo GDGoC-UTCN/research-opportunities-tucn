@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Bookmark, Calendar, Clock, Share2, ArrowUpRight } from 'lucide-react';
 import { ApplicationStatus, Opportunity } from '../types';
+import { statusLabel, statusBadge } from '../lib/applicationStatus';
 
 interface OpportunityCardProps {
   opportunity: Opportunity;
@@ -12,18 +13,6 @@ interface OpportunityCardProps {
   onShare: (opp: Opportunity) => void;
   onOpenProfessor?: (professorId: string) => void;
 }
-
-const STATUS_LABELS: Record<ApplicationStatus, string> = {
-  pending: 'Applied',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-};
-
-const STATUS_STYLES: Record<ApplicationStatus, string> = {
-  pending: 'bg-amber-50 text-amber-700 border border-amber-200',
-  accepted: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  rejected: 'bg-red-50 text-red-600 border border-red-200',
-};
 
 const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick, saved, applicationStatus, onToggleSave, onShare, onOpenProfessor }) => {
   return (
@@ -70,9 +59,9 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick,
 
         <div className="flex items-center gap-2 mb-4">
           {applicationStatus ? (
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold ${STATUS_STYLES[applicationStatus]}`}>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold ${statusBadge(applicationStatus)}`}>
               <Bookmark size={13} fill="currentColor" />
-              {STATUS_LABELS[applicationStatus]}
+              {statusLabel(applicationStatus)}
             </span>
           ) : (
             <button

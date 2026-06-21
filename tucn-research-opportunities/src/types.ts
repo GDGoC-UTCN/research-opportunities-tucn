@@ -137,7 +137,26 @@ export interface MyOpportunities {
   rejected: MyOpportunityItem[];
 }
 
-export type ApplicationStatus = 'pending' | 'accepted' | 'rejected';
+export type ApplicationStatus = 'new' | 'pending' | 'under_review' | 'shortlisted' | 'accepted' | 'rejected';
+
+export interface ReviewApplication {
+  id: string;
+  opportunityId: string;
+  opportunityTitle: string;
+  studentName: string;
+  studentEmail: string;
+  studentLinkedin?: string | null;
+  studentInterests: string[];
+  studentSkills: string[];
+  status: ApplicationStatus;
+  score: number | null;
+  professorNotes: string;
+  message: string;
+  answers: ApplicationAnswer[];
+  submittedAt?: string | null;
+  cvFile?: { name: string; downloadUrl: string };
+  transcriptFile?: { name: string; downloadUrl: string };
+}
 
 export interface ApplicationAnswer {
   fieldId: string;

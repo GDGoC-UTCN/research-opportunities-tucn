@@ -305,7 +305,7 @@ router.post('/applications', requireAuth, requireRole('student'), applicationUpl
   if (existing) throw httpError(409, 'You have already applied for this opportunity');
 
   const result = await run(
-    'INSERT INTO applications (opportunity_id,student_id,student_name,message,answers) VALUES (?,?,?,?,?)',
+    "INSERT INTO applications (opportunity_id,student_id,student_name,message,answers,status) VALUES (?,?,?,?,?,'new')",
     [
       opportunityId,
       String(req.user.id),

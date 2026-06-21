@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Bookmark, BookOpen, CheckCircle2, Clock, FileText, Trash2, XCircle } from 'lucide-react';
+import { Bookmark, BookOpen, CheckCircle2, Clock, Eye, FileText, Star, Trash2, XCircle } from 'lucide-react';
 import { Application, MyOpportunities, MyOpportunityItem, Opportunity, User } from '../../types';
 import { downloadApplicationFile } from '../../api';
 
@@ -23,10 +23,15 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'rejected', label: 'Rejected' },
 ];
 
-const STATUS_CONFIG = {
-  accepted: { icon: CheckCircle2, label: 'Accepted', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', bar: 'bg-green-500' },
+type StatusCfg = { icon: typeof Clock; label: string; bg: string; text: string; border: string; bar: string };
+
+const STATUS_CONFIG: Record<string, StatusCfg> = {
+  new: { icon: Clock, label: 'Submitted', bg: 'bg-zinc-100', text: 'text-zinc-700', border: 'border-zinc-200', bar: 'bg-zinc-300' },
+  pending: { icon: Clock, label: 'Submitted', bg: 'bg-zinc-100', text: 'text-zinc-700', border: 'border-zinc-200', bar: 'bg-zinc-300' },
+  under_review: { icon: Eye, label: 'Under review', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', bar: 'bg-amber-400' },
+  shortlisted: { icon: Star, label: 'Shortlisted', bg: 'bg-zinc-900', text: 'text-white', border: 'border-zinc-900', bar: 'bg-zinc-900' },
+  accepted: { icon: CheckCircle2, label: 'Accepted', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: 'bg-emerald-500' },
   rejected: { icon: XCircle, label: 'Rejected', bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', bar: 'bg-red-500' },
-  pending: { icon: Clock, label: 'Pending', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', bar: 'bg-amber-400' },
 };
 
 function ApplicationDetails({ app }: { app?: Application }) {
@@ -152,8 +157,8 @@ export default function StudentApplications({
   const renderApplicationCard = (item: MyOpportunityItem) => {
     const app = item.application;
     const fullApp = app ? studentApps.find(candidate => candidate.id === app.id) : undefined;
-    const status = app?.status || 'pending';
-    const cfg = STATUS_CONFIG[status];
+    const status = app?.status || 'new';
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.new;
     const StatusIcon = cfg.icon;
 
     return (
@@ -198,9 +203,17 @@ export default function StudentApplications({
             </div>
             <p className="text-sm text-gray-700">{app.professorReply}</p>
           </div>
-        ) : status === 'pending' ? (
+        ) : status === 'shortlisted' ? (
+          <div className="border-t border-zinc-100 px-6 py-3 bg-zinc-50">
+            <p className="text-xs text-zinc-700 font-medium">Your application has been shortlisted.</p>
+          </div>
+        ) : status === 'under_review' ? (
           <div className="border-t px-6 py-3">
-            <p className="text-xs text-gray-400 italic">Waiting for a reply from the professor...</p>
+            <p className="text-xs text-gray-400 italic">Your application is under review.</p>
+          </div>
+        ) : (status === 'new' || status === 'pending') ? (
+          <div className="border-t px-6 py-3">
+            <p className="text-xs text-gray-400 italic">Submitted — waiting for the professor to review.</p>
           </div>
         ) : null}
       </div>

@@ -206,6 +206,10 @@ function ensureApplicationFileColumns() {
     ['transcript_file_name', 'TEXT'],
     ['transcript_file_size', 'INTEGER'],
     ['transcript_file_type', 'TEXT'],
+    // Review workspace fields (additive).
+    ['score', 'INTEGER'],
+    ['professor_notes', 'TEXT'],
+    ['updated_at', 'TEXT'],
   ];
 
   db.all('PRAGMA table_info(applications)', [], (err, rows) => {
@@ -214,13 +218,25 @@ function ensureApplicationFileColumns() {
       return;
     }
     const existing = new Set(rows.map(row => row.name));
-    for (const [name, type] of columns) {
-      if (!existing.has(name)) {
-        db.run(`ALTER TABLE applications ADD COLUMN ${name} ${type}`, alterErr => {
-          if (alterErr) console.error(`Failed to add applications.${name}`, alterErr);
-        });
-      }
+    const missing = columns.filter(([name]) => !existing.has(name));
+    let remaining = missing.length;
+    const finish = () => { if (remaining <= 0) migrateApplicationStatuses(); };
+    if (remaining === 0) { migrateApplicationStatuses(); return; }
+    for (const [name, type] of missing) {
+      db.run(`ALTER TABLE applications ADD COLUMN ${name} ${type}`, alterErr => {
+        if (alterErr) console.error(`Failed to add applications.${name}`, alterErr);
+        remaining -= 1;
+        finish();
+      });
     }
+  });
+}
+
+function migrateApplicationStatuses() {
+  // Map legacy 'pending' status to the richer 'new' status. Idempotent and
+  // non-destructive: only touches rows still using the legacy value.
+  db.run("UPDATE applications SET status = 'new' WHERE status = 'pending' OR status IS NULL", err => {
+    if (err) console.error('Failed to migrate application statuses', err);
   });
 }
 

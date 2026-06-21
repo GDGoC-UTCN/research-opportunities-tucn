@@ -845,6 +845,48 @@ async function main() {
     result = await request('GET', '/api/notifications', student);
     assert(result.json.unreadCount === 0, 'unread count is zero after mark all read');
 
+    // ── Professor review workspace ─────────────────────────────────────
+    result = await request('GET', '/api/professor/applications', professor);
+    assert(result.response.status === 200 && result.json.applications.some(a => a.id === String(applicationId)), 'professor lists applications for own opportunities');
+    const reviewApp = result.json.applications.find(a => a.id === String(applicationId));
+    assert(reviewApp && reviewApp.studentEmail && Array.isArray(reviewApp.answers), 'review application includes student email and answers');
+
+    result = await request('GET', '/api/professor/applications', otherProfessor);
+    assert(result.response.status === 200 && !result.json.applications.some(a => a.id === String(applicationId)), 'professor cannot list another professor applications');
+
+    await runSql("UPDATE users SET approved = 0 WHERE email = 'pending@example.com'");
+    result = await request('GET', '/api/professor/applications', professor);
+    assert(result.response.status === 403, 'unapproved professor cannot access review workspace');
+    await runSql("UPDATE users SET approved = 1 WHERE email = 'pending@example.com'");
+
+    // Notes/score update must NOT notify the student.
+    result = await request('PATCH', `/api/professor/applications/${applicationId}/review`, professor, { score: 4, professorNotes: 'Strong candidate' });
+    assert(result.response.status === 200 && result.json.application.score === 4 && result.json.application.professorNotes === 'Strong candidate', 'professor can set score and notes');
+
+    result = await request('GET', '/api/notifications', student);
+    assert(!result.json.notifications.some(n => n.type === 'application_under_review' || n.type === 'application_shortlisted'), 'notes/score changes do not notify the student');
+
+    // Status change must notify the student.
+    result = await request('PATCH', `/api/professor/applications/${applicationId}/review`, professor, { status: 'shortlisted' });
+    assert(result.response.status === 200 && result.json.application.status === 'shortlisted', 'professor can change application status');
+
+    result = await request('GET', '/api/notifications', student);
+    assert(result.json.notifications.some(n => n.type === 'application_shortlisted'), 'status change creates a notification');
+
+    result = await request('PATCH', `/api/professor/applications/${applicationId}/review`, otherProfessor, { status: 'rejected' });
+    assert(result.response.status === 403, 'non-owning professor cannot review an application');
+
+    // Students never see professor notes.
+    result = await request('GET', '/api/applications', student);
+    assert(!JSON.stringify(result.json).includes('Strong candidate'), 'students cannot see professor notes');
+
+    // CSV export works and never leaks file URLs.
+    const csvExport = await download('/api/professor/applications/export', professor);
+    assert(csvExport.response.status === 200 && (csvExport.response.headers.get('content-type') || '').includes('text/csv'), 'CSV export returns a CSV file');
+    const csvText = csvExport.buffer.toString('utf8');
+    assert(csvText.includes('Opportunity,Student Name') && csvText.includes('Strong candidate'), 'CSV includes expected columns and notes');
+    assert(!csvText.includes('/api/applications') && !csvText.includes('file_key') && !csvText.includes('downloadUrl'), 'CSV export does not expose file URLs');
+
     await request('DELETE', `/api/opportunities/${recTargetId}`, admin);
     await request('DELETE', '/api/admin/users/stillpending@example.com', admin);
 
