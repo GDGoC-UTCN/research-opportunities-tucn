@@ -7,6 +7,7 @@
     "dev": "nodemon index.js",
     "migrate": "knex migrate:latest --knexfile knexfile.js",
     "seed-admin": "node seed-admin.js",
+    "check-authors": "node scripts/check-opportunity-authors.js",
     "smoke": "node smoke-test.js"
   },
   "dependencies": {

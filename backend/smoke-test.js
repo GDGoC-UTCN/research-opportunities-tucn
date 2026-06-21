@@ -428,6 +428,39 @@ async function main() {
     result = await request('GET', '/api/opportunities/99999999', guest);
     assert(result.response.status === 404, 'unknown opportunity detail should return 404');
 
+    // Public listing is open to guests and surfaces approved-professor posts.
+    result = await request('GET', '/api/opportunities', guest);
+    assert(result.response.status === 200, 'public opportunities listing should be accessible without auth');
+    assert(
+      result.json.opportunities.some(o => o.id === String(opportunityId)),
+      'approved professor opportunity should appear in public listing'
+    );
+    assert(
+      result.json.opportunities.every(o => o.author && o.author.id && o.author.name),
+      'public listing opportunities should include author identity'
+    );
+
+    // An unapproved professor's opportunities must disappear from public views.
+    await runSql("UPDATE users SET approved = 0 WHERE email = 'pending@example.com'");
+    result = await request('GET', '/api/opportunities', guest);
+    assert(
+      !result.json.opportunities.some(o => o.id === String(opportunityId)),
+      'unapproved professor opportunity should be hidden from public listing'
+    );
+    result = await request('GET', `/api/opportunities/${opportunityId}`, guest);
+    assert(result.response.status === 404, 'unapproved professor opportunity detail should return 404');
+    await runSql("UPDATE users SET approved = 1 WHERE email = 'pending@example.com'");
+
+    // Orphaned/demo rows whose author_id matches no approved professor stay hidden.
+    await runSql(
+      "INSERT INTO opportunities (title,description,abstract,duration,stipend,author_id,author_name) VALUES ('Orphan Demo Opportunity','x','x','1 month','None','99999','Ghost Professor')"
+    );
+    result = await request('GET', '/api/opportunities', guest);
+    assert(
+      !result.json.opportunities.some(o => o.title === 'Orphan Demo Opportunity'),
+      'orphaned opportunity should be hidden from public listing'
+    );
+
     result = await request('POST', `/api/profile/saved-opportunities/${opportunityId}`, guest);
     assert(result.response.status === 401, 'unauthenticated user cannot save opportunity');
 

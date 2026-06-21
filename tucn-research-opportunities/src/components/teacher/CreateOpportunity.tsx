@@ -14,6 +14,8 @@ interface Props {
 export default function CreateOpportunity({ currentUser, opportunities, setOpportunities, setView }: Props) {
   const [newOppFields, setNewOppFields] = useState<ApplicationField[]>([]);
   const [newFieldQuestion, setNewFieldQuestion] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
   const [requireCv, setRequireCv] = useState(false);
   const [requireTranscript, setRequireTranscript] = useState(false);
 
@@ -22,6 +24,14 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
       setNewOppFields([...newOppFields, { id: Date.now().toString(), question: newFieldQuestion.trim() }]);
       setNewFieldQuestion('');
     }
+  };
+
+  const addTag = () => {
+    const value = newTag.trim().toUpperCase();
+    if (value && !tags.includes(value) && tags.length < 20) {
+      setTags([...tags, value]);
+    }
+    setNewTag('');
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -36,7 +46,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
       duration:    formData.get('duration') as string,
       deadline:    'December 31, 2026',
       postDate:    'Today',
-      tags:        ['NEW', 'RESEARCH'],
+      tags:        tags,
       requirements: { technical: ['To be specified'], eligibility: ['To be specified'] },
       applicationFields: newOppFields,
   requireCv,
@@ -76,6 +86,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
 
     setOpportunities(prev => [newOpp, ...prev]);
     setNewOppFields([]);
+    setTags([]);
     setView('dashboard');
   };
 
@@ -135,6 +146,57 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
             <div>
               <label className={labelClass}>Stipend / Funding <span className="text-red-400">*</span></label>
               <input name="stipend" required type="text" placeholder="e.g. Unpaid or €1,000" className={inputClass} />
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div className="pt-5 border-t border-gray-100">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Tags</label>
+                <p className="text-xs text-gray-400 mt-0.5">Add topics so students can filter and find this project</p>
+              </div>
+              <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">{tags.length}/20</span>
+            </div>
+
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-blue-50 text-utcn-primary border border-blue-100 px-2.5 py-1 rounded-md"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setTags(prev => prev.filter(t => t !== tag))}
+                      className="text-utcn-primary/60 hover:text-red-500 transition-colors"
+                      aria-label={`Remove tag ${tag}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTag}
+                onChange={e => setNewTag(e.target.value)}
+                placeholder="e.g. Machine Learning, Robotics…"
+                className={`${inputClass} flex-1`}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+              />
+              <button
+                type="button"
+                onClick={addTag}
+                disabled={!newTag.trim() || tags.length >= 20}
+                className="px-4 py-2.5 bg-slate-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-slate-200 disabled:opacity-40 transition-colors flex-shrink-0"
+              >
+                Add
+              </button>
             </div>
           </div>
 
