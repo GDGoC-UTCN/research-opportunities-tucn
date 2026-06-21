@@ -227,6 +227,20 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Admin login is available at `/admin`.
 
+### Public Browse data
+
+Public Browse only ever shows real opportunities returned by `GET /api/opportunities`, and the backend only returns opportunities whose author is an **approved professor**. Posts from pending/unapproved professors and orphaned rows are hidden, and an empty database renders a clean empty state — never bundled mock data.
+
+Bundled demo opportunities are opt-in for local demos only. Copy `tucn-research-opportunities/.env.example` to `.env` and set `VITE_DEMO_MODE=true` to show them when the API is empty or unreachable. Production builds must leave `VITE_DEMO_MODE=false` (the default).
+
+To audit existing data, run the diagnostic (it reports which opportunities are hidden and can optionally relink unambiguous name matches without deleting anything):
+
+```bash
+cd backend
+npm run check-authors            # report only
+node scripts/check-opportunity-authors.js --repair   # relink by author name
+```
+
 ## Docker
 
 From the repository root:

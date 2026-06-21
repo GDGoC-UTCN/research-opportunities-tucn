@@ -16,6 +16,12 @@ import ApplicationModal from './components/student/ApplicationModal';
 import ProfilePage from './components/profile/ProfilePage';
 import { apiFetch, resetCsrfToken } from './api';
 
+// Demo mode is opt-in for local demos only. Production builds leave
+// VITE_DEMO_MODE unset/"false" so Browse only ever shows real opportunities
+// returned by the API — never bundled mock data.
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+const INITIAL_OPPORTUNITIES: Opportunity[] = DEMO_MODE ? MOCK_OPPORTUNITIES : [];
+
 type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile' | 'notFound';
 
 function parseRoute(pathname: string): { view: View; opportunityId?: string } {
@@ -58,7 +64,8 @@ export default function App() {
   const currentUserRef = useRef<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>(MOCK_OPPORTUNITIES);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>(INITIAL_OPPORTUNITIES);
+  const [loadError, setLoadError] = useState(false);
   const [applications, setApplications] = useState<Application[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [myOpportunities, setMyOpportunities] = useState<MyOpportunities>(EMPTY_MY_OPPORTUNITIES);
@@ -323,11 +330,19 @@ export default function App() {
       const res = await apiFetch('/api/opportunities');
       if (res.ok) {
         const json = await res.json();
-        if (Array.isArray(json.opportunities) && json.opportunities.length > 0) {
-          setOpportunities(json.opportunities);
-        }
+        const list: Opportunity[] = Array.isArray(json.opportunities) ? json.opportunities : [];
+        // In demo mode only, fall back to mock data when the API has none.
+        setOpportunities(list.length === 0 && DEMO_MODE ? MOCK_OPPORTUNITIES : list);
+        setLoadError(false);
+      } else {
+        // Never silently show fake data in production on an error response.
+        setOpportunities(DEMO_MODE ? MOCK_OPPORTUNITIES : []);
+        setLoadError(true);
       }
-    } catch { /* server unreachable — keep mock data */ }
+    } catch {
+      setOpportunities(DEMO_MODE ? MOCK_OPPORTUNITIES : []);
+      setLoadError(true);
+    }
     setIsLoading(false);
   };
 
@@ -667,8 +682,11 @@ export default function App() {
       <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
         <AnimatePresence mode="wait">
           {view === 'list' ? (
-            <OpportunityList 
+            <OpportunityList
               opportunities={opportunities}
+              isLoading={isLoading}
+              loadError={loadError}
+              onRetry={loadPostings}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               activeTags={activeTags}

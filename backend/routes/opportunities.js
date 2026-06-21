@@ -17,7 +17,29 @@ function parseJson(value, fallback) {
   }
 }
 
+// Public listings only ever expose opportunities authored by an approved
+// professor. author_id is stored as TEXT while users.id is an INTEGER, so both
+// sides are cast to TEXT for a safe comparison. The join also lets us return
+// the professor's current name/department rather than the values copied onto
+// the opportunity row at creation time.
+const APPROVED_AUTHOR_FROM = `
+  FROM opportunities o
+  JOIN users u ON CAST(o.author_id AS TEXT) = CAST(u.id AS TEXT)
+  WHERE u.role = 'professor' AND u.approved = 1
+`;
+const APPROVED_AUTHOR_SELECT = `
+  SELECT o.*,
+         u.id AS approved_author_id,
+         u.name AS approved_author_name,
+         u.department AS approved_author_department
+`;
+
 function mapOpportunity(r) {
+  // Prefer the joined approved-professor identity when present (public routes),
+  // falling back to the denormalized author_* columns otherwise.
+  const authorId = r.approved_author_id != null ? r.approved_author_id : r.author_id;
+  const authorName = r.approved_author_name != null ? r.approved_author_name : r.author_name;
+  const authorDepartment = r.approved_author_department != null ? r.approved_author_department : r.author_department;
   return {
     id: String(r.id),
     title: r.title,
@@ -34,10 +56,10 @@ function mapOpportunity(r) {
     status: r.status || 'active',
     requirements: { technical: ['To be specified'], eligibility: ['To be specified'] },
     author: {
-      id: String(r.author_id),
-      name: r.author_name,
-      department: r.author_department,
-      avatar: r.author_avatar,
+      id: String(authorId),
+      name: authorName,
+      department: authorDepartment,
+      avatar: r.author_avatar || `https://picsum.photos/seed/${encodeURIComponent(authorName || 'professor')}/100/100`,
     },
   };
 }
@@ -53,16 +75,21 @@ function softAuthUser(req) {
 }
 
 router.get('/opportunities', asyncHandler(async (req, res) => {
+  // Only approved-professor opportunities are ever returned (the JOIN enforces
+  // this). On top of that, archived posts are hidden from the public, while an
+  // admin sees everything and a professor still sees their own archived posts.
   const user = softAuthUser(req);
-  let rows = await all('SELECT * FROM opportunities ORDER BY created_at DESC');
+  let rows = await all(`${APPROVED_AUTHOR_SELECT} ${APPROVED_AUTHOR_FROM} ORDER BY o.created_at DESC`);
   if (!user || user.role !== 'admin') {
-    rows = rows.filter(r => r.status === 'active' || (user?.role === 'professor' && String(r.author_id) === String(user.sub)));
+    rows = rows.filter(r => (r.status || 'active') === 'active' || (user?.role === 'professor' && String(r.author_id) === String(user.sub)));
   }
   res.json({ opportunities: rows.map(mapOpportunity) });
 }));
 
 router.get('/opportunities/:id', asyncHandler(async (req, res) => {
-  const row = await get('SELECT * FROM opportunities WHERE id = ?', [req.params.id]);
+  // Return 404 for both missing opportunities and those whose author is not an
+  // approved professor, so unapproved/orphaned posts are never exposed publicly.
+  const row = await get(`${APPROVED_AUTHOR_SELECT} ${APPROVED_AUTHOR_FROM} AND o.id = ?`, [req.params.id]);
   if (!row) throw httpError(404, 'Opportunity not found');
   const user = softAuthUser(req);
   if (row.status !== 'active') {
@@ -96,7 +123,7 @@ router.post('/opportunities', requireAuth, requireApprovedProfessor, asyncHandle
       asString(req.body.stipend),
       asString(req.body.duration),
       asString(req.body.deadline) || 'December 31, 2026',
-      JSON.stringify(tags.length ? tags : ['NEW', 'RESEARCH']),
+      JSON.stringify(tags),
       JSON.stringify(fields),
       req.body.requireCv ? 1 : 0,
       req.body.requireTranscript ? 1 : 0,

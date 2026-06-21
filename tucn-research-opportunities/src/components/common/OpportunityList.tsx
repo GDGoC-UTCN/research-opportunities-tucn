@@ -1,11 +1,14 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, ChevronLeft, ChevronRight, Search, Filter, X } from 'lucide-react';
+import { Users, ChevronLeft, ChevronRight, Search, Filter, X, AlertCircle } from 'lucide-react';
 import { ApplicationStatus, Opportunity } from '../../types';
 import OpportunityCard from '../OpportunityCard';
 
 interface Props {
   opportunities: Opportunity[];
+  isLoading?: boolean;
+  loadError?: boolean;
+  onRetry?: () => void;
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   searchQuery: string;
   activeTags: string[];
@@ -26,6 +29,9 @@ interface Props {
 
 export default function OpportunityList({
   opportunities,
+  isLoading,
+  loadError,
+  onRetry,
   setSearchQuery,
   searchQuery,
   activeTags,
@@ -62,13 +68,44 @@ export default function OpportunityList({
       {/* Page heading */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Research Opportunities</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          {totalVisible === opportunities.length
-            ? `${opportunities.length} opportunities available`
-            : `${totalVisible} of ${opportunities.length} opportunities matching your filters`}
-        </p>
+        {opportunities.length > 0 && (
+          <p className="text-gray-500 text-sm mt-1">
+            {totalVisible === opportunities.length
+              ? `${opportunities.length} opportunities available`
+              : `${totalVisible} of ${opportunities.length} opportunities matching your filters`}
+          </p>
+        )}
       </div>
 
+      {opportunities.length === 0 ? (
+        isLoading ? (
+          <div className="text-center py-24 bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="mx-auto h-10 w-10 mb-4 rounded-full border-2 border-gray-200 border-t-utcn-primary animate-spin" />
+            <p className="text-sm text-gray-400">Loading research opportunities…</p>
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-24 bg-white rounded-xl shadow-sm border border-gray-100">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-200 mb-4" />
+            <h3 className="text-base font-semibold text-gray-700">We couldn't load opportunities</h3>
+            <p className="mt-1 text-sm text-gray-400">Please check your connection and try again.</p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="mt-5 px-4 py-2 rounded-xl bg-utcn-primary text-white text-sm font-semibold hover:bg-utcn-primary-dark"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-24 bg-white rounded-xl shadow-sm border border-gray-100">
+            <Users className="mx-auto h-12 w-12 text-gray-200 mb-4" />
+            <h3 className="text-base font-semibold text-gray-700">No research opportunities are available yet</h3>
+            <p className="mt-1 text-sm text-gray-400">New AIRi@UTCN research opportunities will appear here soon.</p>
+          </div>
+        )
+      ) : (
+      <>
       {/* Search + Filter bar */}
       <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-stretch md:items-center gap-3 mb-6">
         {/* Search */}
@@ -221,6 +258,8 @@ export default function OpportunityList({
             </div>
           )}
         </>
+      )}
+      </>
       )}
     </motion.div>
   );

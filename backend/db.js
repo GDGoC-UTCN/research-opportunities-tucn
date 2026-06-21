@@ -34,6 +34,7 @@ function initDb() {
       author_name TEXT,
       author_department TEXT,
       author_avatar TEXT,
+      status TEXT DEFAULT 'active',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     db.run(`CREATE TABLE IF NOT EXISTS applications (
@@ -85,6 +86,30 @@ function initDb() {
     )`);
     ensureApplicationFileColumns();
     ensureUserProfileColumns();
+    ensureOpportunityColumns();
+  });
+}
+
+function ensureOpportunityColumns() {
+  // Older databases predate the archive feature; add the status column if it is
+  // missing and default existing rows to 'active'. Non-destructive.
+  db.all('PRAGMA table_info(opportunities)', [], (err, rows) => {
+    if (err) {
+      console.error('Failed to inspect opportunities table', err);
+      return;
+    }
+    const existing = new Set(rows.map(row => row.name));
+    if (!existing.has('status')) {
+      db.run(`ALTER TABLE opportunities ADD COLUMN status TEXT DEFAULT 'active'`, alterErr => {
+        if (alterErr) {
+          console.error('Failed to add opportunities.status', alterErr);
+          return;
+        }
+        db.run(`UPDATE opportunities SET status = 'active' WHERE status IS NULL`, updateErr => {
+          if (updateErr) console.error('Failed to backfill opportunities.status', updateErr);
+        });
+      });
+    }
   });
 }
 
