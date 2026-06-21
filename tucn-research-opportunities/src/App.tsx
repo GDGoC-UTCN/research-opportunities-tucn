@@ -760,41 +760,41 @@ export default function App() {
       <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
         <AnimatePresence mode="wait">
           {view === 'list' ? (
-            <div key="list">
-              {currentUser?.role === 'student' && (
+            <OpportunityList
+              opportunities={opportunities}
+              isLoading={isLoading}
+              loadError={loadError}
+              onRetry={loadPostings}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              activeTags={activeTags}
+              toggleTag={toggleTag}
+              allTags={allTags}
+              showFilterMenu={showFilterMenu}
+              setShowFilterMenu={setShowFilterMenu}
+              paginatedOpportunities={paginatedOpportunities}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalPages={totalPages}
+              handleCardClick={handleCardClick}
+              savedOpportunityIds={savedOpportunityIds}
+              applicationStatusForOpportunity={applicationStatusForOpportunity}
+              handleToggleSave={handleToggleSave}
+              handleShareOpportunity={handleShareOpportunity}
+              onOpenProfessor={openProfessor}
+              afterHero={
                 <RecommendedForYou
+                  currentUser={currentUser}
                   handleCardClick={handleCardClick}
                   savedOpportunityIds={savedOpportunityIds}
                   applicationStatusForOpportunity={applicationStatusForOpportunity}
                   handleToggleSave={handleToggleSave}
                   handleShareOpportunity={handleShareOpportunity}
                   onEditInterests={() => { setView('profile'); pushPath('/profile'); window.scrollTo(0, 0); }}
+                  onSignIn={goToLogin}
                 />
-              )}
-              <OpportunityList
-                opportunities={opportunities}
-                isLoading={isLoading}
-                loadError={loadError}
-                onRetry={loadPostings}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                activeTags={activeTags}
-                toggleTag={toggleTag}
-                allTags={allTags}
-                showFilterMenu={showFilterMenu}
-                setShowFilterMenu={setShowFilterMenu}
-                paginatedOpportunities={paginatedOpportunities}
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
-                totalPages={totalPages}
-                handleCardClick={handleCardClick}
-                savedOpportunityIds={savedOpportunityIds}
-                applicationStatusForOpportunity={applicationStatusForOpportunity}
-                handleToggleSave={handleToggleSave}
-                handleShareOpportunity={handleShareOpportunity}
-                onOpenProfessor={openProfessor}
-              />
-            </div>
+              }
+            />
           ) : view === 'create' && currentUser?.role === 'professor' ? (
             <CreateOpportunity 
               currentUser={currentUser}
