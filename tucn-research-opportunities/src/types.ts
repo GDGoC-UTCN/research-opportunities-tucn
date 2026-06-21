@@ -139,6 +139,20 @@ export interface MyOpportunities {
 
 export type ApplicationStatus = 'new' | 'pending' | 'under_review' | 'shortlisted' | 'accepted' | 'rejected';
 
+export type InterviewStatus = 'none' | 'invited' | 'scheduled' | 'completed' | 'cancelled';
+
+export interface ApplicationInterview {
+  id?: string;
+  status: InterviewStatus;
+  slotId?: string | null;
+  scheduledAt?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  location?: string | null;
+  meetingLink?: string | null;
+  feedback?: string;
+}
+
 export interface ReviewApplication {
   id: string;
   opportunityId: string;
@@ -156,6 +170,44 @@ export interface ReviewApplication {
   submittedAt?: string | null;
   cvFile?: { name: string; downloadUrl: string };
   transcriptFile?: { name: string; downloadUrl: string };
+  interview?: ApplicationInterview;
+}
+
+export interface GroupedOpportunity {
+  id: string;
+  title: string;
+  applications: ReviewApplication[];
+  stats: {
+    total: number; new: number; under_review: number; shortlisted: number;
+    accepted: number; rejected: number; interviews_scheduled: number;
+  };
+}
+
+export interface InterviewSlot {
+  id: string;
+  opportunityId: string;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  location?: string | null;
+  meetingLink?: string | null;
+  capacity: number;
+  bookedCount: number;
+  available: boolean;
+}
+
+export interface StudentInterview {
+  id: string;
+  applicationId: string;
+  opportunityId: string;
+  opportunityTitle?: string;
+  status: InterviewStatus;
+  slotId?: string | null;
+  scheduledAt?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  location?: string | null;
+  meetingLink?: string | null;
 }
 
 export interface ApplicationAnswer {

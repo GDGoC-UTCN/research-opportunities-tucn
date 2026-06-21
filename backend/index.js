@@ -14,6 +14,7 @@ const questionRoutes = require('./routes/questions');
 const professorRoutes = require('./routes/professors');
 const recommendationRoutes = require('./routes/recommendations');
 const professorApplicationRoutes = require('./routes/professorApplications');
+const interviewRoutes = require('./routes/interviews');
 const { issueCsrfToken, requireCsrf } = require('./middleware/csrf');
 const { notFound, errorHandler } = require('./utils/errors');
 
@@ -113,6 +114,7 @@ router.use(questionRoutes);
 router.use(professorRoutes);
 router.use(recommendationRoutes);
 router.use(professorApplicationRoutes);
+router.use(interviewRoutes);
 
 app.use(router);
 app.use('/api', router);

@@ -78,6 +78,8 @@ Privacy model:
 
 A dedicated workspace at `/professor/applications` lets approved professors review applicants to their own opportunities professionally.
 
+**Opportunity-first layout.** The workspace opens on a grid of the professor's opportunities, each showing applicant stats (total, new, under review, shortlisted, accepted, rejected, interviews scheduled). Selecting an opportunity opens its applicants with filters/search/sort scoped to that opportunity — professors never see all applicants mixed together. Data comes from `GET /api/professor/applications/grouped` (owned opportunities only).
+
 Statuses follow a richer flow — **new → under_review → shortlisted → accepted / rejected**. Legacy `pending` rows are migrated to `new` at boot (idempotent, non-destructive) and `pending` is still accepted as an alias.
 
 Professors can:
@@ -95,6 +97,21 @@ Security & privacy:
 - The CSV export contains text fields only — it never includes document contents or protected object-storage URLs.
 
 Notifications are created **only on a real status change** (under_review, shortlisted, accepted, rejected) — never for notes-only or score-only updates, and never when the status is unchanged. Students see the friendly status in **My Opportunities** (Submitted / Under review / Shortlisted / Accepted / Rejected), with a positive "Your application has been shortlisted." note when shortlisted.
+
+### Interview scheduling
+
+Interview state is tracked separately from application status (in the `interviews` table) with its own lifecycle: **none → invited → scheduled → completed / cancelled**.
+
+Flow:
+
+1. A professor adds **availability slots** per opportunity (date/time, location, meeting link, capacity) in the workspace "Interview availability" section. Slots must be in the future with `start < end` and capacity ≥ 1, and can only be created/edited/deleted for owned opportunities; a slot with a scheduled booking cannot be deleted.
+2. From an applicant's drawer, the professor clicks **Invite to interview** (available when the application is shortlisted or under review). This creates an `invited` interview and notifies the student.
+3. The student sees the invite in **My Opportunities**, opens **Schedule interview**, picks an available slot, and the interview becomes `scheduled`. Capacity is enforced — a full slot (for capacity 1) is hidden and double-booking is rejected. Both sides are notified.
+4. The professor sees scheduled interviews in the workspace (count + per-applicant status), can **mark completed** and record **private feedback**, then accept/reject.
+
+Privacy: `professor_feedback` is private and is **never** returned by any student endpoint. Meeting links and slot details are only visible to the involved student (once invited), the owning professor, and admins. Pending professors and public users cannot manage or view interviews.
+
+**Calendar export.** A scheduled interview can be downloaded as an `.ics` file via `GET /api/interviews/:id/calendar.ics` (student, owning professor, or admin only). The event includes the opportunity title, time, and location/meeting link — never notes or feedback.
 
 ## Professor & Research Group Profiles
 
@@ -185,7 +202,7 @@ Passwords and password hashes are never returned by the API.
 ## Backend Architecture
 
 - **Express API** (`backend/index.js`) mounts feature routers under both `/` and `/api`, with `helmet`, credentialed CORS, `cookie-parser`, JSON/body limits, and the CSRF guard.
-- **Routes** (`backend/routes/`): `auth` (signup/login/logout/me), `admin` (approvals, user management), `opportunities` (public listing/detail, create/edit/delete), `applications` (apply, status updates, protected file downloads), `professorApplications` (review workspace: list/review/CSV export), `profile` (profile, avatar, documents, saved opportunities, my-opportunities), `professors` (public directory/profiles), `recommendations`, `notifications`, and `questions` (Q&A).
+- **Routes** (`backend/routes/`): `auth` (signup/login/logout/me), `admin` (approvals, user management), `opportunities` (public listing/detail, create/edit/delete), `applications` (apply, status updates, protected file downloads), `professorApplications` (review workspace: list/grouped/review/CSV export), `interviews` (availability slots, invites, scheduling, completion, ICS), `profile` (profile, avatar, documents, saved opportunities, my-opportunities), `professors` (public directory/profiles), `recommendations`, `notifications`, and `questions` (Q&A).
 - **Persistence** (`backend/db.js`): SQLite accessed through small promisified `run`/`get`/`all` helpers. `initDb()` creates every table with `CREATE TABLE IF NOT EXISTS` on boot and runs **idempotent runtime schema repair** (`ensureApplicationFileColumns`, `ensureUserProfileColumns`, `ensureOpportunityColumns`, `ensureOpportunityQuestionColumns`) that `ALTER TABLE ... ADD COLUMN` only when a column is missing. Schema changes are additive and never reset or drop data.
 - **Storage service** (`backend/services/storage.js`): an S3-compatible client for production/MinIO plus a local-filesystem provider used by tests; both expose the same put/get/delete interface and keep credentials backend-only.
 - **Validation** (`backend/utils/validation.js`): pure validators (`validateSignup`, `validateLogin`, `validateOpportunity`, `validateApplication`, `validateStatusUpdate`, `validateQuestion`, `validateQuestionAnswer`) plus `asString`/`cleanUser` helpers.
@@ -261,6 +278,17 @@ Shared chrome: `Header` (role-aware navigation + notifications), `Footer` (Quick
 | `GET` | `/api/professor/applications` | Approved professor; own-opportunity applications, filters `opportunityId`/`status`/`search` |
 | `PATCH` | `/api/professor/applications/:applicationId/review` | Owning approved professor; update status/score/notes, CSRF required; notifies on status change |
 | `GET` | `/api/professor/applications/export` | Approved professor; CSV of own applications (no file contents/URLs) |
+| `GET` | `/api/professor/applications/grouped` | Approved professor; own opportunities with grouped applications + stats |
+| `POST` | `/api/professor/opportunities/:opportunityId/interview-slots` | Owning approved professor; create availability slot, CSRF required |
+| `GET` | `/api/professor/opportunities/:opportunityId/interview-slots` | Owning approved professor; list slots + booking counts |
+| `PATCH` | `/api/professor/interview-slots/:slotId` | Owning approved professor; edit future slot, CSRF required |
+| `DELETE` | `/api/professor/interview-slots/:slotId` | Owning approved professor; delete unbooked slot, CSRF required |
+| `POST` | `/api/professor/applications/:applicationId/interview-invite` | Owning approved professor; invite shortlisted/under-review applicant, CSRF required |
+| `PATCH` | `/api/professor/interviews/:interviewId` | Owning approved professor; complete/cancel + private feedback, CSRF required |
+| `GET` | `/api/student/interviews` | Student; own interviews (no professor feedback) |
+| `GET` | `/api/opportunities/:opportunityId/interview-slots` | Student; available slots, only if invited for that opportunity |
+| `POST` | `/api/student/interviews/:interviewId/schedule` | Student; choose a slot (capacity-checked), CSRF required |
+| `GET` | `/api/interviews/:interviewId/calendar.ics` | Involved student / owning professor / admin; ICS download |
 | `GET` | `/api/notifications` | Authenticated current user; `?unread=true` filter, returns `unreadCount` |
 | `PATCH` | `/api/notifications/:id/read` | Authenticated owner, CSRF required |
 | `PATCH` | `/api/notifications/read-all` | Authenticated current user, CSRF required |
@@ -542,3 +570,4 @@ Manual flow:
 - Recommendations do not generate notifications (to avoid spam).
 - Application scoring is a single 1–5 score plus private notes (not a multi-field rubric); a richer rubric (technical/motivation/experience/availability) is a future enhancement.
 - The review workspace filters/sorts client-side over the professor's loaded applications; server-side filters exist on the list and export endpoints but pagination is not yet implemented for very large applicant pools.
+- Interview scheduling supports one interview per application; a student can re-pick a slot while `invited`/`scheduled` (basic reschedule), but there is no automated reminder system and slot edits do not notify already-booked students. Calendar integration is ICS download only (no Google/Outlook sync).

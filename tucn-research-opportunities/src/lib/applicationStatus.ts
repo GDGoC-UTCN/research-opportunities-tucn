@@ -28,6 +28,29 @@ export const STATUS_BAR: Record<string, string> = {
   rejected: 'bg-red-500',
 };
 
+export const INTERVIEW_LABEL: Record<string, string> = {
+  none: '',
+  invited: 'Interview invited',
+  scheduled: 'Interview scheduled',
+  completed: 'Interview completed',
+  cancelled: 'Interview cancelled',
+};
+
+export const INTERVIEW_BADGE: Record<string, string> = {
+  invited: 'bg-amber-50 text-amber-700 border border-amber-200',
+  scheduled: 'bg-zinc-900 text-white border border-zinc-900',
+  completed: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  cancelled: 'bg-zinc-100 text-zinc-500 border border-zinc-200',
+};
+
+export function interviewLabel(status?: string | null): string {
+  return INTERVIEW_LABEL[status || 'none'] || '';
+}
+
+export function interviewBadge(status?: string | null): string {
+  return INTERVIEW_BADGE[status || 'none'] || INTERVIEW_BADGE.invited;
+}
+
 export function statusLabel(status?: string | null): string {
   return STATUS_LABEL[status || 'new'] || 'Submitted';
 }
