@@ -49,9 +49,10 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
   };
 
   return (
-    <div className="bg-utcn-navy text-white shadow-lg border-b-[3px] border-utcn-red">
+    <div className="bg-utcn-navy text-white border-b border-white/10">
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-utcn-red/70 to-transparent" />
       <header className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-[4.5rem]">
+        <div className="flex items-center justify-between h-[4.25rem]">
 
           {/* Logo + Title */}
           <button
@@ -59,9 +60,9 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
             onClick={() => navigate(homeView)}
           >
             <Logo />
-            <div className="flex flex-col items-start leading-tight">
-              <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-blue-300 group-hover:text-blue-200 transition-colors">AIRi@UTCN</span>
-              <span className="text-base font-bold text-white group-hover:text-blue-100 transition-colors">Research Opportunities</span>
+            <div className="hidden sm:flex flex-col items-start leading-tight">
+              <span className="text-[10px] font-semibold tracking-[0.22em] uppercase text-white/45 group-hover:text-white/70 transition-colors">AIRi@UTCN</span>
+              <span className="text-base font-display text-white group-hover:text-white/80 transition-colors whitespace-nowrap">Research Opportunities</span>
             </div>
           </button>
 
@@ -76,7 +77,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                 </button>
                 <button
                   onClick={() => navigate('login')}
-                  className="text-sm bg-utcn-primary text-white hover:bg-utcn-primary-dark px-3 py-1.5 rounded-lg transition-colors font-semibold flex items-center gap-1.5 ml-1"
+                  className="text-sm bg-white text-zinc-900 hover:bg-zinc-200 px-3.5 py-1.5 rounded-lg transition-colors font-semibold flex items-center gap-1.5 ml-1"
                 >
                   <LogIn size={14} />
                   Sign in
@@ -103,7 +104,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                 </button>
                 <button
                   onClick={() => { setView('create'); window.history.pushState({}, '', '/create'); }}
-                  className="text-sm bg-utcn-primary text-white hover:bg-utcn-primary-dark px-3 py-1.5 rounded-lg transition-colors font-semibold flex items-center gap-1.5 ml-1"
+                  className="text-sm bg-white text-zinc-900 hover:bg-zinc-200 px-3.5 py-1.5 rounded-lg transition-colors font-semibold flex items-center gap-1.5 ml-1"
                 >
                   <Plus size={14} />
                   Post Project
@@ -154,7 +155,7 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                             <button
                               key={n.id}
                               onClick={() => { if (!n.read) markAsRead(n.id); }}
-                              className={`w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''}`}
+                              className={`w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-zinc-50' : ''}`}
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1">

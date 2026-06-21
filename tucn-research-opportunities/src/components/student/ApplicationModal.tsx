@@ -54,7 +54,7 @@ function UploadBox({
   return (
     <div>
       {value ? (
-        <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+        <div className="flex items-center gap-3 px-4 py-3 bg-zinc-100 border border-zinc-200 rounded-xl">
           <FileText size={20} className="text-utcn-primary flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-800 truncate">{value.name}</p>
@@ -80,7 +80,7 @@ function UploadBox({
             if (file) processFile(file);
           }}
           className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-5 px-4 cursor-pointer transition-colors ${
-            dragOver ? 'border-utcn-primary bg-blue-50' : 'border-gray-200 hover:border-utcn-primary hover:bg-blue-50/50'
+            dragOver ? 'border-utcn-primary bg-zinc-100' : 'border-gray-200 hover:border-utcn-primary hover:bg-zinc-100/50'
           }`}
         >
           <Upload size={20} className={dragOver ? 'text-utcn-primary' : 'text-gray-400'} />
@@ -133,7 +133,7 @@ function DocumentSourceField({
         {label} {required ? <span className="text-red-400 font-normal text-xs">(required)</span> : <span className="text-gray-400 font-normal text-xs">(optional)</span>}
       </label>
       <div className="grid gap-2">
-        <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${mode === 'profile' ? 'border-utcn-primary bg-blue-50' : 'border-gray-200 bg-white'}`}>
+        <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${mode === 'profile' ? 'border-utcn-primary bg-zinc-100' : 'border-gray-200 bg-white'}`}>
           <input
             type="radio"
             checked={mode === 'profile'}
@@ -155,13 +155,13 @@ function DocumentSourceField({
           </span>
         </label>
 
-        <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${mode === 'upload' ? 'border-utcn-primary bg-blue-50' : 'border-gray-200 bg-white'}`}>
+        <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${mode === 'upload' ? 'border-utcn-primary bg-zinc-100' : 'border-gray-200 bg-white'}`}>
           <input type="radio" checked={mode === 'upload'} onChange={() => setMode('upload')} className="mt-1" />
           <span className="text-sm font-medium text-gray-800">Upload a different {label.toLowerCase()} for this application</span>
         </label>
 
         {!required && (
-          <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${mode === 'none' ? 'border-utcn-primary bg-blue-50' : 'border-gray-200 bg-white'}`}>
+          <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${mode === 'none' ? 'border-utcn-primary bg-zinc-100' : 'border-gray-200 bg-white'}`}>
             <input type="radio" checked={mode === 'none'} onChange={() => setMode('none')} className="mt-1" />
             <span className="text-sm font-medium text-gray-800">No {label.toLowerCase()}</span>
           </label>
@@ -268,7 +268,7 @@ export default function ApplicationModal({ opportunity, profile, onProfileRefres
           <div className="flex items-start justify-between px-6 py-5 border-b bg-gradient-to-r from-utcn-navy to-utcn-primary text-white rounded-t-2xl flex-shrink-0">
             <div className="min-w-0 pr-4">
               <h2 className="text-base font-bold">Apply for Opportunity</h2>
-              <p className="text-blue-200 text-xs mt-0.5 line-clamp-1">{opportunity.title}</p>
+              <p className="text-white/60 text-xs mt-0.5 line-clamp-1">{opportunity.title}</p>
             </div>
             <button onClick={onClose} className="flex-shrink-0 p-1.5 rounded-full hover:bg-white/20 transition-colors">
               <X size={18} />
@@ -351,7 +351,7 @@ export default function ApplicationModal({ opportunity, profile, onProfileRefres
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-2.5 bg-utcn-primary text-white rounded-xl text-sm font-semibold hover:bg-utcn-primary-dark transition-colors flex items-center gap-2 shadow-md shadow-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="px-6 py-2.5 bg-utcn-primary text-white rounded-xl text-sm font-semibold hover:bg-utcn-primary-dark transition-colors flex items-center gap-2 shadow-md shadow-zinc-900/10 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Send size={14} />
                 {submitting ? 'Submitting...' : 'Submit Application'}

@@ -52,19 +52,34 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
       className="max-w-4xl mx-auto"
     >
       {/* Page header */}
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex justify-between items-start mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {myOpps.length} project{myOpps.length !== 1 ? 's' : ''} posted · {totalApplicants} total applicant{totalApplicants !== 1 ? 's' : ''}
-          </p>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="signal-dot" aria-hidden="true" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400">Research workspace</span>
+          </div>
+          <h1 className="font-display text-[2rem] leading-tight text-zinc-900">My Dashboard</h1>
         </div>
         <button
           onClick={() => setView('create')}
-          className="bg-utcn-primary text-white px-4 py-2.5 rounded-xl font-semibold flex items-center gap-1.5 shadow-md shadow-blue-100 hover:bg-utcn-primary-dark transition-colors text-sm"
+          className="bg-zinc-900 text-white px-4 py-2.5 rounded-xl font-semibold flex items-center gap-1.5 shadow-sm hover:bg-black transition-colors text-sm flex-shrink-0"
         >
           <Plus size={16} /> New Project
         </button>
+      </div>
+
+      {/* Overview */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-sm p-5">
+          <div className="w-9 h-9 rounded-xl bg-zinc-900 text-white flex items-center justify-center mb-3"><FileText size={16} /></div>
+          <div className="font-display text-3xl text-zinc-900 leading-none tabular-nums">{myOpps.length}</div>
+          <div className="text-[11px] uppercase tracking-widest text-zinc-400 mt-1.5">Posted opportunities</div>
+        </div>
+        <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-sm p-5">
+          <div className="w-9 h-9 rounded-xl bg-zinc-900 text-white flex items-center justify-center mb-3"><Users size={16} /></div>
+          <div className="font-display text-3xl text-zinc-900 leading-none tabular-nums">{totalApplicants}</div>
+          <div className="text-[11px] uppercase tracking-widest text-zinc-400 mt-1.5">Total applicants</div>
+        </div>
       </div>
 
       {myOpps.length === 0 ? (
@@ -100,7 +115,7 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                       >
                         Edit
                       </button>
-                      <span className="bg-blue-50 text-utcn-primary border border-blue-100 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
+                      <span className="bg-zinc-100 text-utcn-primary border border-zinc-200 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
                         <Users size={11} />
                         {oppApps.length} Applicant{oppApps.length !== 1 ? 's' : ''}
                       </span>
@@ -168,7 +183,7 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                                             <a
                                               href={app.cvFile.dataUrl}
                                               download={app.cvFile.name}
-                                              className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-utcn-primary hover:bg-blue-100 transition-colors"
+                                              className="flex items-center gap-2 px-3 py-2 bg-zinc-100 border border-zinc-200 rounded-lg text-sm text-utcn-primary hover:bg-zinc-200 transition-colors"
                                             >
                                               <FileText size={14} className="flex-shrink-0" />
                                               <span className="font-semibold">CV</span>
@@ -178,7 +193,7 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                                           <button
                                             type="button"
                                             onClick={() => downloadApplicationFile(app.id, 'cv', app.cvFile?.name || 'cv.pdf').catch(err => alert(err.message))}
-                                            className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-utcn-primary hover:bg-blue-100 transition-colors"
+                                            className="flex items-center gap-2 px-3 py-2 bg-zinc-100 border border-zinc-200 rounded-lg text-sm text-utcn-primary hover:bg-zinc-200 transition-colors"
                                           >
                                             <FileText size={14} className="flex-shrink-0" />
                                             <span className="font-semibold">CV</span>
@@ -191,7 +206,7 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                                             <a
                                               href={app.transcriptFile.dataUrl}
                                               download={app.transcriptFile.name}
-                                              className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-utcn-primary hover:bg-blue-100 transition-colors"
+                                              className="flex items-center gap-2 px-3 py-2 bg-zinc-100 border border-zinc-200 rounded-lg text-sm text-utcn-primary hover:bg-zinc-200 transition-colors"
                                             >
                                               <FileText size={14} className="flex-shrink-0" />
                                               <span className="font-semibold">Transcript</span>
@@ -201,7 +216,7 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
                                           <button
                                             type="button"
                                             onClick={() => downloadApplicationFile(app.id, 'transcript', app.transcriptFile?.name || 'transcript.pdf').catch(err => alert(err.message))}
-                                            className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-utcn-primary hover:bg-blue-100 transition-colors"
+                                            className="flex items-center gap-2 px-3 py-2 bg-zinc-100 border border-zinc-200 rounded-lg text-sm text-utcn-primary hover:bg-zinc-200 transition-colors"
                                           >
                                             <FileText size={14} className="flex-shrink-0" />
                                             <span className="font-semibold">Transcript</span>

@@ -58,7 +58,7 @@ function ApplicationDetails({ app }: { app?: Application }) {
               <a
                 href={app.cvFile.dataUrl}
                 download={app.cvFile.name}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 hover:border-zinc-900 transition-colors font-medium"
               >
                 <FileText size={12} />
                 CV - {app.cvFile.name}
@@ -67,7 +67,7 @@ function ApplicationDetails({ app }: { app?: Application }) {
               <button
                 type="button"
                 onClick={() => downloadApplicationFile(app.id, 'cv', app.cvFile?.name || 'cv.pdf').catch(err => alert(err.message))}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 hover:border-zinc-900 transition-colors font-medium"
               >
                 <FileText size={12} />
                 CV - {app.cvFile.name}
@@ -79,7 +79,7 @@ function ApplicationDetails({ app }: { app?: Application }) {
               <a
                 href={app.transcriptFile.dataUrl}
                 download={app.transcriptFile.name}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 hover:border-zinc-900 transition-colors font-medium"
               >
                 <FileText size={12} />
                 Transcript - {app.transcriptFile.name}
@@ -88,7 +88,7 @@ function ApplicationDetails({ app }: { app?: Application }) {
               <button
                 type="button"
                 onClick={() => downloadApplicationFile(app.id, 'transcript', app.transcriptFile?.name || 'transcript.pdf').catch(err => alert(err.message))}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-utcn-primary hover:bg-blue-100 transition-colors font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs text-zinc-700 hover:border-zinc-900 transition-colors font-medium"
               >
                 <FileText size={12} />
                 Transcript - {app.transcriptFile.name}
@@ -121,12 +121,12 @@ export default function StudentApplications({
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5 mb-3">
             {item.opportunity.tags.slice(0, 3).map(tag => (
-              <span key={tag} className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-utcn-primary border border-blue-100">
+              <span key={tag} className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 border border-zinc-200">
                 {tag}
               </span>
             ))}
           </div>
-          <button className="font-bold text-gray-900 hover:text-utcn-primary transition-colors text-left leading-snug" onClick={() => onViewOpportunity(item.opportunity)}>
+          <button className="font-display text-[1.05rem] text-zinc-900 hover:underline decoration-zinc-300 underline-offset-4 transition-colors text-left leading-snug" onClick={() => onViewOpportunity(item.opportunity)}>
             {item.opportunity.title}
           </button>
           <p className="mt-2 text-sm text-gray-500 line-clamp-2">{item.opportunity.description}</p>
@@ -135,10 +135,10 @@ export default function StudentApplications({
           </p>
         </div>
         <div className="flex flex-wrap gap-2 md:flex-shrink-0">
-          <button type="button" onClick={() => onViewOpportunity(item.opportunity)} className="px-3 py-2 rounded-lg bg-slate-50 text-gray-700 text-xs font-semibold hover:bg-slate-100">
+          <button type="button" onClick={() => onViewOpportunity(item.opportunity)} className="px-3 py-2 rounded-lg bg-zinc-100 text-zinc-700 text-xs font-semibold hover:bg-zinc-200 transition-colors">
             View
           </button>
-          <button type="button" onClick={() => onApplyOpportunity(item.opportunity)} className="px-3 py-2 rounded-lg bg-utcn-primary text-white text-xs font-semibold hover:bg-utcn-primary-dark">
+          <button type="button" onClick={() => onApplyOpportunity(item.opportunity)} className="px-3 py-2 rounded-lg bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors">
             Apply
           </button>
           <button type="button" onClick={() => onRemoveSavedOpportunity(item.opportunity)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100">
@@ -162,10 +162,10 @@ export default function StudentApplications({
         <div className="p-6">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="min-w-0">
-              <button className="font-bold text-gray-900 hover:text-utcn-primary transition-colors text-left leading-snug" onClick={() => onViewOpportunity(item.opportunity)}>
+              <button className="font-display text-[1.05rem] text-zinc-900 hover:underline decoration-zinc-300 underline-offset-4 transition-colors text-left leading-snug" onClick={() => onViewOpportunity(item.opportunity)}>
                 {item.opportunity.title}
               </button>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 {item.opportunity.author.name} · Applied {app?.date || fullApp?.date || 'recently'}
               </p>
             </div>
@@ -216,13 +216,17 @@ export default function StudentApplications({
       className="max-w-4xl mx-auto"
     >
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Opportunities</h1>
-        <p className="text-gray-500 text-sm mt-1">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="signal-dot" aria-hidden="true" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-400">Your activity</span>
+        </div>
+        <h1 className="font-display text-[2rem] leading-tight text-zinc-900">My Opportunities</h1>
+        <p className="text-zinc-500 text-sm mt-1">
           Saved opportunities and application decisions in one place.
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-2 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-sm p-1.5 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
         {TABS.map(tab => (
           <button
             key={tab.key}
@@ -230,11 +234,11 @@ export default function StudentApplications({
             onClick={() => setActiveTab(tab.key)}
             className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
               activeTab === tab.key
-                ? 'bg-utcn-primary text-white'
-                : 'text-gray-600 hover:bg-slate-50'
+                ? 'bg-zinc-900 text-white'
+                : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
             }`}
           >
-            {tab.label} ({myOpportunities[tab.key]?.length || 0})
+            {tab.label} <span className={activeTab === tab.key ? 'text-white/60' : 'text-zinc-400'}>({myOpportunities[tab.key]?.length || 0})</span>
           </button>
         ))}
       </div>

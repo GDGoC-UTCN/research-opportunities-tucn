@@ -31,13 +31,13 @@ const StepCard: React.FC<StepCardProps> = ({ icon: Icon, index, title, text }) =
   return (
     <div className="flex gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
       <div className="flex-shrink-0">
-        <div className="w-10 h-10 rounded-xl bg-blue-50 text-utcn-primary flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl bg-zinc-100 text-utcn-primary flex items-center justify-center">
           <Icon size={18} />
         </div>
       </div>
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[11px] font-bold text-utcn-primary bg-blue-50 rounded-full w-5 h-5 flex items-center justify-center">{index}</span>
+          <span className="text-[11px] font-bold text-utcn-primary bg-zinc-100 rounded-full w-5 h-5 flex items-center justify-center">{index}</span>
           <h3 className="font-bold text-gray-900 text-sm">{title}</h3>
         </div>
         <p className="text-sm text-gray-500 leading-relaxed">{text}</p>
@@ -56,10 +56,10 @@ export default function HowItWorks({ onBrowse }: Props) {
       className="max-w-5xl mx-auto"
     >
       {/* Hero */}
-      <div className="bg-gradient-to-r from-utcn-navy to-utcn-primary rounded-2xl px-8 py-10 text-white mb-8">
-        <p className="text-[11px] font-bold tracking-widest uppercase text-blue-200 mb-2">AIRi@UTCN</p>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">How It Works</h1>
-        <p className="text-blue-100 text-sm mt-2 max-w-2xl leading-relaxed">
+      <div className="bg-gradient-to-r from-utcn-navy to-utcn-navy-light rounded-2xl px-8 py-10 text-white mb-8">
+        <p className="text-[11px] font-bold tracking-widest uppercase text-white/60 mb-2">AIRi@UTCN</p>
+        <h1 className="font-display text-3xl sm:text-4xl tracking-tight">How It Works</h1>
+        <p className="text-white/70 text-sm mt-2 max-w-2xl leading-relaxed">
           AIRi@UTCN Research Opportunities connects students at the Technical University of Cluj-Napoca with professors and applied research projects. Here is how the platform works for each side.
         </p>
       </div>

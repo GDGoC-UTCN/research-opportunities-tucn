@@ -46,10 +46,10 @@ export default function Faqs({ onBrowse }: Props) {
       className="max-w-3xl mx-auto"
     >
       {/* Hero */}
-      <div className="bg-gradient-to-r from-utcn-navy to-utcn-primary rounded-2xl px-8 py-10 text-white mb-8">
-        <p className="text-[11px] font-bold tracking-widest uppercase text-blue-200 mb-2">AIRi@UTCN</p>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Frequently Asked Questions</h1>
-        <p className="text-blue-100 text-sm mt-2 max-w-2xl leading-relaxed">
+      <div className="bg-gradient-to-r from-utcn-navy to-utcn-navy-light rounded-2xl px-8 py-10 text-white mb-8">
+        <p className="text-[11px] font-bold tracking-widest uppercase text-white/60 mb-2">AIRi@UTCN</p>
+        <h1 className="font-display text-3xl sm:text-4xl tracking-tight">Frequently Asked Questions</h1>
+        <p className="text-white/70 text-sm mt-2 max-w-2xl leading-relaxed">
           Answers to common questions about browsing, applying and publishing AIRi@UTCN research opportunities.
         </p>
       </div>

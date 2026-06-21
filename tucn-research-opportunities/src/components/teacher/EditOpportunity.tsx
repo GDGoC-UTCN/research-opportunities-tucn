@@ -103,9 +103,9 @@ export default function EditOpportunity({ currentUser, opportunityToEdit, setOpp
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-utcn-navy to-utcn-primary px-8 py-7 text-white">
-          <h1 className="text-xl font-bold">Edit Research Opportunity</h1>
-          <p className="text-blue-200 text-sm mt-1">Update your existing project details.</p>
+        <div className="bg-gradient-to-r from-utcn-navy to-utcn-navy-light px-8 py-7 text-white">
+          <h1 className="font-display text-2xl">Edit Research Opportunity</h1>
+          <p className="text-white/60 text-sm mt-1">Update your existing project details.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-7 md:p-8 space-y-5">
@@ -153,12 +153,12 @@ export default function EditOpportunity({ currentUser, opportunityToEdit, setOpp
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
                 {tags.map(tag => (
-                  <span key={tag} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                  <span key={tag} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-100 text-zinc-700 border border-zinc-200">
                     {tag}
                     <button
                       type="button"
                       onClick={() => setTags(prev => prev.filter(t => t !== tag))}
-                      className="text-blue-400 hover:text-blue-800 transition-colors"
+                      className="text-zinc-500 hover:text-zinc-900 transition-colors"
                     >
                       <X size={12} />
                     </button>
@@ -270,7 +270,7 @@ export default function EditOpportunity({ currentUser, opportunityToEdit, setOpp
           <div className="pt-5 border-t border-gray-100 flex items-center gap-3">
             <button
               type="submit"
-              className="bg-utcn-primary text-white px-7 py-3 rounded-xl font-semibold text-sm hover:bg-utcn-primary-dark transition-colors shadow-md shadow-blue-100"
+              className="bg-utcn-primary text-white px-7 py-3 rounded-xl font-semibold text-sm hover:bg-utcn-primary-dark transition-colors shadow-md shadow-zinc-900/10"
             >
               Save Changes
             </button>

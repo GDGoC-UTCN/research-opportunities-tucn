@@ -92,10 +92,10 @@ export default function ForProfessors(props: Props) {
       className="max-w-4xl mx-auto"
     >
       {/* Hero */}
-      <div className="bg-gradient-to-r from-utcn-navy to-utcn-primary rounded-2xl px-8 py-10 text-white mb-8">
-        <p className="text-[11px] font-bold tracking-widest uppercase text-blue-200 mb-2">AIRi@UTCN</p>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">For Professors</h1>
-        <p className="text-blue-100 text-sm mt-2 max-w-2xl leading-relaxed">
+      <div className="bg-gradient-to-r from-utcn-navy to-utcn-navy-light rounded-2xl px-8 py-10 text-white mb-8">
+        <p className="text-[11px] font-bold tracking-widest uppercase text-white/60 mb-2">AIRi@UTCN</p>
+        <h1 className="font-display text-3xl sm:text-4xl tracking-tight">For Professors</h1>
+        <p className="text-white/70 text-sm mt-2 max-w-2xl leading-relaxed">
           Recruit motivated students for your research projects. Professor and research-coordinator accounts are reviewed by an admin before publishing, keeping the platform trusted for everyone.
         </p>
       </div>
@@ -105,7 +105,7 @@ export default function ForProfessors(props: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {features.map(({ icon: Icon, title, text }) => (
             <div key={title} className="flex gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-utcn-primary flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-zinc-100 text-utcn-primary flex items-center justify-center flex-shrink-0">
                 <Icon size={18} />
               </div>
               <div>

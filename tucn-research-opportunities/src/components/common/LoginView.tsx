@@ -45,28 +45,28 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
       {/* ── Left Panel — AIRi@UTCN Branding ── */}
       <div className="lg:w-[55%] bg-utcn-navy flex flex-col justify-center items-start p-10 lg:p-16 text-white relative overflow-hidden">
 
-        {/* Decorative circles */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-utcn-primary opacity-10 rounded-full pointer-events-none" />
-        <div className="absolute -bottom-40 -right-20 w-[28rem] h-[28rem] bg-utcn-red opacity-10 rounded-full pointer-events-none" />
-        <div className="absolute top-1/2 right-0 w-64 h-64 bg-utcn-navy-light opacity-30 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+        {/* Research textures */}
+        <div className="absolute inset-0 research-grid-dark research-fade opacity-60 pointer-events-none" aria-hidden="true" />
+        <div className="absolute -bottom-40 -right-20 w-[28rem] h-[28rem] bg-utcn-red opacity-[0.07] rounded-full pointer-events-none" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-utcn-red/60 to-transparent pointer-events-none" />
 
         <div className="relative z-10 max-w-lg">
           {/* Logo + wordmark */}
           <div className="flex items-center gap-4 mb-10">
             <Logo large />
             <div>
-              <p className="text-xs font-bold tracking-[0.2em] uppercase text-blue-300 mb-0.5">AIRi@UTCN</p>
-              <p className="text-lg font-bold leading-none">Research Opportunities</p>
+              <p className="text-xs font-semibold tracking-[0.22em] uppercase text-white/45 mb-0.5">AIRi@UTCN</p>
+              <p className="text-lg font-display leading-none">Research Opportunities</p>
             </div>
           </div>
 
-          <h1 className="text-4xl lg:text-5xl font-extrabold leading-[1.15] tracking-tight mb-5">
+          <h1 className="font-display text-4xl lg:text-[3.4rem] leading-[1.08] tracking-tight mb-5">
             AIRi@UTCN<br />
-            <span className="text-utcn-primary">Research</span><br />
+            <span className="italic text-white/45">Research</span><br />
             Opportunities
           </h1>
 
-          <p className="text-blue-200 text-base leading-relaxed mb-10 max-w-md">
+          <p className="text-white/60 text-base leading-relaxed mb-10 max-w-md">
             Connect with professors, join cutting-edge projects and advance your academic career at the
             <span className="font-semibold text-white"> Technical University of Cluj-Napoca</span>.
           </p>
@@ -80,9 +80,9 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Icon size={15} className="text-blue-300" />
+                  <Icon size={15} className="text-white/50" />
                 </div>
-                <span className="text-sm text-blue-100 leading-relaxed">{text}</span>
+                <span className="text-sm text-white/70 leading-relaxed">{text}</span>
               </div>
             ))}
           </div>
@@ -124,7 +124,7 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
                 onClick={() => { setSelectedRole('student'); setMode('signin'); }}
-                className="group w-full flex items-center justify-between py-4 px-5 bg-utcn-primary text-white rounded-xl font-semibold text-sm shadow-md shadow-blue-200 hover:bg-utcn-primary-dark transition-all"
+                className="group w-full flex items-center justify-between py-4 px-5 bg-utcn-primary text-white rounded-xl font-semibold text-sm shadow-md shadow-zinc-900/10 hover:bg-utcn-primary-dark transition-all"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
@@ -132,7 +132,7 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
                   </div>
                   <div className="text-left">
                     <div className="font-semibold">Continue as Student</div>
-                    <div className="text-blue-200 text-xs font-normal">Browse &amp; apply to opportunities</div>
+                    <div className="text-white/60 text-xs font-normal">Browse &amp; apply to opportunities</div>
                   </div>
                 </div>
                 <ArrowRight size={16} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
@@ -150,7 +150,7 @@ export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
                   </div>
                   <div className="text-left">
                     <div className="font-semibold">Continue as Professor</div>
-                    <div className="text-blue-200 text-xs font-normal">Post &amp; manage research projects</div>
+                    <div className="text-white/60 text-xs font-normal">Post &amp; manage research projects</div>
                   </div>
                 </div>
                 <ArrowRight size={16} className="opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
