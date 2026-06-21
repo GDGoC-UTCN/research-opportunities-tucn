@@ -1,4 +1,15 @@
-export default function Footer() {
+interface Props {
+  onNavigate: (path: string) => void;
+}
+
+const QUICK_LINKS = [
+  { label: 'Browse Opportunities', href: '/opportunities' },
+  { label: 'How It Works', href: '/how-it-works' },
+  { label: 'For Professors', href: '/for-professors' },
+  { label: 'FAQs', href: '/faqs' },
+];
+
+export default function Footer({ onNavigate }: Props) {
   return (
     <footer className="bg-utcn-navy text-white w-full mt-16">
       {/* Red accent top border */}
@@ -27,14 +38,13 @@ export default function Footer() {
           <div>
             <h4 className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-4">Quick Links</h4>
             <ul className="space-y-2.5 text-sm text-blue-200">
-              {[
-                { label: 'Browse Opportunities', href: '#' },
-                { label: 'How It Works', href: '#' },
-                { label: 'For Professors', href: '#' },
-                { label: 'FAQs', href: '#' },
-              ].map(({ label, href }) => (
+              {QUICK_LINKS.map(({ label, href }) => (
                 <li key={label}>
-                  <a href={href} className="hover:text-white transition-colors hover:underline underline-offset-2">
+                  <a
+                    href={href}
+                    onClick={(e) => { e.preventDefault(); onNavigate(href); }}
+                    className="hover:text-white transition-colors hover:underline underline-offset-2"
+                  >
                     {label}
                   </a>
                 </li>

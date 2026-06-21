@@ -14,6 +14,9 @@ import TeacherDashboard from './components/teacher/TeacherDashboard';
 import StudentApplications from './components/student/StudentApplications';
 import ApplicationModal from './components/student/ApplicationModal';
 import ProfilePage from './components/profile/ProfilePage';
+import HowItWorks from './components/info/HowItWorks';
+import ForProfessors from './components/info/ForProfessors';
+import Faqs from './components/info/Faqs';
 import { apiFetch, resetCsrfToken } from './api';
 
 // Demo mode is opt-in for local demos only. Production builds leave
@@ -22,13 +25,16 @@ import { apiFetch, resetCsrfToken } from './api';
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 const INITIAL_OPPORTUNITIES: Opportunity[] = DEMO_MODE ? MOCK_OPPORTUNITIES : [];
 
-type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile' | 'notFound';
+type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile' | 'howItWorks' | 'forProfessors' | 'faqs' | 'notFound';
 
 function parseRoute(pathname: string): { view: View; opportunityId?: string } {
   if (pathname === '/login' || pathname === '/admin') return { view: 'login' };
   if (pathname === '/profile') return { view: 'profile' };
   if (pathname === '/applications') return { view: 'applications' };
   if (pathname === '/create') return { view: 'create' };
+  if (pathname === '/how-it-works') return { view: 'howItWorks' };
+  if (pathname === '/for-professors') return { view: 'forProfessors' };
+  if (pathname === '/faqs') return { view: 'faqs' };
   if (pathname === '/opportunities' || pathname === '/') return { view: 'list' };
   const match = pathname.match(/^\/opportunities\/([^/]+)$/);
   if (match) return { view: 'detail', opportunityId: decodeURIComponent(match[1]) };
@@ -106,7 +112,37 @@ export default function App() {
     setView('list');
     setSelectedOpportunity(null);
     setShowUserMenu(false);
-    pushPath('/');
+    pushPath('/opportunities');
+  };
+
+  // Generic SPA navigation used by the footer Quick Links and informational
+  // pages. These routes are public, so no auth gating is applied here.
+  const navigateToPath = (path: string) => {
+    const route = parseRoute(path);
+    setSelectedOpportunity(null);
+    setApplyModalOpen(false);
+    setShowUserMenu(false);
+    setView(route.view);
+    pushPath(path);
+    window.scrollTo(0, 0);
+  };
+
+  // "Create professor account" CTA: open the login/signup screen with the
+  // professor role preselected in signup mode.
+  const goToProfessorSignup = () => {
+    setShowUserMenu(false);
+    setView('login');
+    window.history.pushState({}, '', '/login?role=professor&signup=1');
+  };
+
+  // Send approved professors / admins to their dashboard. Admins have a stable
+  // /admin URL; professor dashboards have no dedicated path in this app, so we
+  // mirror the existing Header behavior and keep the home path.
+  const goToDashboard = () => {
+    setShowUserMenu(false);
+    setView('dashboard');
+    if (currentUser?.role === 'admin') pushPath('/admin');
+    else pushPath('/opportunities');
   };
 
   const continuePendingApply = (user: User, fallbackView: View) => {
@@ -759,6 +795,17 @@ export default function App() {
               setCurrentUser={setCurrentUser}
               setView={setView}
             />
+          ) : view === 'howItWorks' ? (
+            <HowItWorks onBrowse={goToList} />
+          ) : view === 'forProfessors' ? (
+            <ForProfessors
+              currentUser={currentUser}
+              onCreateAccount={goToProfessorSignup}
+              onGoToDashboard={goToDashboard}
+              onBrowse={goToList}
+            />
+          ) : view === 'faqs' ? (
+            <Faqs onBrowse={goToList} />
           ) : view === 'notFound' ? (
             <div className="max-w-2xl mx-auto bg-white border border-gray-100 rounded-2xl shadow-sm p-8 text-center">
               <h1 className="text-xl font-bold text-gray-900">Opportunity not found</h1>
@@ -771,7 +818,7 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      <Footer />
+      <Footer onNavigate={navigateToPath} />
 
       {applyModalOpen && selectedOpportunity && currentUser && (
         <ApplicationModal

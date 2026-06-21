@@ -20,10 +20,23 @@ interface UserLike {
   id: string;
 }
 
+function readInitialRole(): null | 'student' | 'professor' | 'admin' {
+  if (typeof window === 'undefined' || !window.location) return null;
+  if (window.location.pathname === '/admin') return 'admin';
+  const role = new URLSearchParams(window.location.search).get('role');
+  if (role === 'professor' || role === 'student') return role;
+  return null;
+}
+
+function readInitialMode(): 'signin' | 'signup' {
+  if (typeof window === 'undefined' || !window.location) return 'signin';
+  return new URLSearchParams(window.location.search).get('signup') ? 'signup' : 'signin';
+}
+
 export default function LoginView({ handleLoginEmail, handleSignup }: Props) {
-  const initialRole = (typeof window !== 'undefined' && window.location && window.location.pathname === '/admin') ? 'admin' as const : null;
+  const initialRole = readInitialRole();
   const [selectedRole, setSelectedRole] = useState<null | 'student' | 'professor' | 'admin'>(initialRole);
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup'>(initialRole ? readInitialMode() : 'signin');
   const [lastError, setLastError] = useState<null | { message: string; status?: number | null; body?: any }>(null);
 
   return (
