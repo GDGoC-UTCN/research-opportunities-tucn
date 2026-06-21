@@ -7,6 +7,7 @@ const { asyncHandler, httpError } = require('../utils/errors');
 const { requireAuth, requireRole, requireApprovedProfessor } = require('../middleware/auth');
 const { validateApplication, validateStatusUpdate, asString } = require('../utils/validation');
 const { putObject, getObjectStream, deleteObject } = require('../services/storage');
+const { createNotification } = require('../utils/notify');
 
 const router = express.Router();
 const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_MB || 5) * 1024 * 1024;
@@ -366,10 +367,14 @@ router.post('/applications', requireAuth, requireRole('student'), applicationUpl
       console.error('Failed to remove saved opportunity after application submission', err);
     });
 
-    await run(
-      'INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)',
-      [String(opportunity.author_id), 'New Application', `${req.user.name} applied to your opportunity "${opportunity.title}".`]
-    ).catch(err => console.error('Failed to create notification', err));
+    const attachedDocs = [cvMeta || useProfileCv ? 'CV' : null, transcriptMeta || useProfileTranscript ? 'transcript' : null].filter(Boolean);
+    await createNotification({
+      userId: opportunity.author_id,
+      type: 'application',
+      title: 'New Application',
+      message: `${req.user.name} applied to your opportunity "${opportunity.title}"${attachedDocs.length ? ` (with ${attachedDocs.join(' and ')})` : ''}.`,
+      linkUrl: `/opportunities/${opportunityId}`,
+    });
 
     return res.status(201).json({ id: applicationId });
   } catch (err) {
@@ -439,10 +444,14 @@ router.patch('/applications/:id', requireAuth, requireApprovedProfessor, asyncHa
     ]
   );
 
-  await run(
-    'INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)',
-    [String(application.student_id), 'Application Status Updated', `Your application for "${application.title}" was updated to ${asString(req.body.status)}.`]
-  ).catch(err => console.error('Failed to create notification', err));
+  const newStatus = asString(req.body.status);
+  await createNotification({
+    userId: application.student_id,
+    type: newStatus === 'accepted' ? 'application_accepted' : newStatus === 'rejected' ? 'application_rejected' : 'application_status',
+    title: newStatus === 'accepted' ? 'Application Accepted' : newStatus === 'rejected' ? 'Application Update' : 'Application Status Updated',
+    message: `Your application for "${application.title}" was ${newStatus}.`,
+    linkUrl: '/applications',
+  });
 
   res.json({ ok: true });
 }));

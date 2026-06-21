@@ -105,6 +105,12 @@ export default function ProfilePage({
   const [name, setName] = useState(currentUser.name);
   const [department, setDepartment] = useState(currentUser.department || '');
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [bio, setBio] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [labName, setLabName] = useState('');
+  const [researchInterestsText, setResearchInterestsText] = useState('');
+  const [skillsText, setSkillsText] = useState('');
+  const [preferredTagsText, setPreferredTagsText] = useState('');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarVersion, setAvatarVersion] = useState(Date.now());
   const [loading, setLoading] = useState(true);
@@ -130,6 +136,12 @@ export default function ProfilePage({
       setName(json.profile.user.name || '');
       setDepartment(json.profile.user.department || '');
       setLinkedinUrl(json.profile.linkedinUrl || '');
+      setBio(json.profile.bio || '');
+      setWebsiteUrl(json.profile.websiteUrl || '');
+      setLabName(json.profile.labName || '');
+      setResearchInterestsText((json.profile.researchInterests || []).join(', '));
+      setSkillsText((json.profile.skills || []).join(', '));
+      setPreferredTagsText((json.profile.preferredTags || []).join(', '));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
@@ -150,10 +162,22 @@ export default function ProfilePage({
     setError('');
     setMessage('');
     try {
+      const toArr = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean);
+      const payload: Record<string, unknown> = { name, department, linkedinUrl };
+      if (currentUser.role === 'professor') {
+        payload.bio = bio;
+        payload.websiteUrl = websiteUrl;
+        payload.labName = labName;
+        payload.researchInterests = toArr(researchInterestsText);
+      } else if (currentUser.role === 'student') {
+        payload.researchInterests = toArr(researchInterestsText);
+        payload.skills = toArr(skillsText);
+        payload.preferredTags = toArr(preferredTagsText);
+      }
       const response = await apiFetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, department, linkedinUrl }),
+        body: JSON.stringify(payload),
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(json.error || 'Failed to save profile');
@@ -288,6 +312,57 @@ export default function ProfilePage({
                 </label>
               </div>
             </div>
+
+            {currentUser.role === 'professor' && (
+              <div className="border-t pt-6 space-y-4">
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">Public profile</h2>
+                  <p className="text-sm text-gray-500 mt-1">Shown on your public professor profile at <span className="font-mono text-xs">/professors</span>.</p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-sm font-semibold text-gray-700">Lab / research group</span>
+                    <input value={labName} onChange={e => setLabName(e.target.value)} placeholder="e.g. Applied ML Lab" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-utcn-primary" />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-gray-700">Website</span>
+                    <input value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="https://your-lab.example" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-utcn-primary" />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="text-sm font-semibold text-gray-700">Research interests</span>
+                    <input value={researchInterestsText} onChange={e => setResearchInterestsText(e.target.value)} placeholder="Machine Learning, Computer Vision, Robotics" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-utcn-primary" />
+                    <span className="text-xs text-gray-400 mt-1 block">Separate with commas.</span>
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="text-sm font-semibold text-gray-700">Short bio</span>
+                    <textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} placeholder="Tell students about your research focus and what you look for in applicants." className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-utcn-primary resize-none" />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {currentUser.role === 'student' && (
+              <div className="border-t pt-6 space-y-4">
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">Research interests &amp; skills</h2>
+                  <p className="text-sm text-gray-500 mt-1">Used to recommend opportunities matched to you. Separate entries with commas.</p>
+                </div>
+                <div className="grid sm:grid-cols-1 gap-4">
+                  <label className="block">
+                    <span className="text-sm font-semibold text-gray-700">Research interests</span>
+                    <input value={researchInterestsText} onChange={e => setResearchInterestsText(e.target.value)} placeholder="Machine Learning, NLP, Quantum Computing" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-utcn-primary" />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-gray-700">Skills</span>
+                    <input value={skillsText} onChange={e => setSkillsText(e.target.value)} placeholder="Python, PyTorch, C++" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-utcn-primary" />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-semibold text-gray-700">Preferred topics / tags</span>
+                    <input value={preferredTagsText} onChange={e => setPreferredTagsText(e.target.value)} placeholder="AI, ROBOTICS, HEALTHCARE" className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-utcn-primary" />
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div className="border-t pt-6 space-y-4">
               <div>

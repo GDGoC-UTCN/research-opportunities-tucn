@@ -3,6 +3,7 @@ const { all, run, get } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asString, isEmail } = require('../utils/validation');
+const { createNotification } = require('../utils/notify');
 const {
   deleteApplicationObjectsForProfessor,
   deleteApplicationObjectsForStudent,
@@ -45,6 +46,19 @@ router.post('/admin/approve', asyncHandler(async (req, res) => {
     : await run("UPDATE users SET approved = 1, updated_at = CURRENT_TIMESTAMP WHERE lower(email) = ? AND role = 'professor'", [email]);
 
   if (result.changes === 0) throw httpError(404, 'Professor not found');
+
+  // Notify the now-approved professor.
+  const professor = id
+    ? await get("SELECT id FROM users WHERE id = ? AND role = 'professor'", [id])
+    : await get("SELECT id FROM users WHERE lower(email) = ? AND role = 'professor'", [email]);
+  await createNotification({
+    userId: professor?.id,
+    type: 'approval',
+    title: 'Account Approved',
+    message: 'Your professor account has been approved. You can now publish research opportunities.',
+    linkUrl: '/opportunities',
+  });
+
   res.json({ ok: true });
 }));
 

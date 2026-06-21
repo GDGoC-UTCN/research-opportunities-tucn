@@ -63,6 +63,48 @@ export interface UserProfile {
   avatar?: UploadedFile;
   cvFile?: UploadedFile;
   transcriptFile?: UploadedFile;
+  // Professor public-profile fields
+  bio?: string;
+  websiteUrl?: string;
+  labName?: string;
+  researchInterests?: string[];
+  // Student recommendation inputs
+  skills?: string[];
+  preferredTags?: string[];
+}
+
+export interface ProfessorSummary {
+  id: string;
+  name: string;
+  department?: string | null;
+  avatar: string;
+  labName?: string | null;
+  researchInterests: string[];
+  bio?: string | null;
+  activeOpportunityCount: number;
+}
+
+export interface ProfessorProfile extends ProfessorSummary {
+  linkedinUrl?: string | null;
+  websiteUrl?: string | null;
+  opportunities: Opportunity[];
+}
+
+export interface Recommendation {
+  opportunity: Opportunity;
+  score: number;
+  reasons: string[];
+  saved: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  type?: string | null;
+  title: string;
+  message?: string | null;
+  link_url?: string | null;
+  read: number;
+  created_at?: string | null;
 }
 
 export interface SavedOpportunity {
