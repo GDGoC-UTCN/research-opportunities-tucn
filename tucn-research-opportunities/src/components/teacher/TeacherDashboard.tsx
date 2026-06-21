@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, ChevronDown, Users, FileText } from 'lucide-react';
+import { Plus, ChevronDown, Users, FileText, ClipboardList } from 'lucide-react';
 import { Opportunity, Application, User } from '../../types';
 import { downloadApplicationFile } from '../../api';
 import EditOpportunity from './EditOpportunity';
@@ -13,9 +13,10 @@ interface Props {
   updateApplicationStatus: (appId: string, status: 'accepted' | 'rejected', professorReply: string) => Promise<void>;
   setOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
   setView: (view: 'create' | 'detail' | 'dashboard' | 'list') => void;
+  onOpenReviews: () => void;
 }
 
-export default function TeacherDashboard({ currentUser, opportunities, applications, updateApplicationStatus, setOpportunities, setView }: Props) {
+export default function TeacherDashboard({ currentUser, opportunities, applications, updateApplicationStatus, setOpportunities, setView, onOpenReviews }: Props) {
   const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
   const [replyMessages, setReplyMessages] = useState<Record<string, string>>({});
   const [editOpportunityId, setEditOpportunityId] = useState<string | null>(null);
@@ -61,12 +62,20 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
           </div>
           <h1 className="font-display text-[2rem] leading-tight text-zinc-900">My Dashboard</h1>
         </div>
-        <button
-          onClick={() => setView('create')}
-          className="bg-zinc-900 text-white px-4 py-2.5 rounded-xl font-semibold flex items-center gap-1.5 shadow-sm hover:bg-black transition-colors text-sm flex-shrink-0"
-        >
-          <Plus size={16} /> New Project
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={onOpenReviews}
+            className="bg-white border border-zinc-200 text-zinc-700 px-4 py-2.5 rounded-xl font-semibold flex items-center gap-1.5 hover:border-zinc-900 transition-colors text-sm"
+          >
+            <ClipboardList size={16} /> Review applications
+          </button>
+          <button
+            onClick={() => setView('create')}
+            className="bg-zinc-900 text-white px-4 py-2.5 rounded-xl font-semibold flex items-center gap-1.5 shadow-sm hover:bg-black transition-colors text-sm"
+          >
+            <Plus size={16} /> New Project
+          </button>
+        </div>
       </div>
 
       {/* Overview */}

@@ -1,6 +1,6 @@
 # AIRi@UTCN Research Opportunities
 
-React/Vite/TypeScript frontend plus an Express + SQLite backend for AIRi@UTCN research opportunities. Anyone can browse public opportunities and approved-professor profiles; authenticated students apply to professor-posted projects, ask questions before applying, and get personalized opportunity recommendations; professors manage their own opportunities and applicants, answer questions, and maintain a public research profile; and admins approve professor accounts and manage platform data. Important events generate in-app notifications. The app ships with informational pages (How It Works, For Professors, FAQs) and a monochrome, editorial AIRi@UTCN interface.
+React/Vite/TypeScript frontend plus an Express + SQLite backend for AIRi@UTCN research opportunities. Anyone can browse public opportunities and approved-professor profiles; authenticated students apply to professor-posted projects, ask questions before applying, and get personalized opportunity recommendations; professors manage their own opportunities, review and score applicants in a dedicated review workspace, answer questions, and maintain a public research profile; and admins approve professor accounts and manage platform data. Important events generate in-app notifications. The app ships with informational pages (How It Works, For Professors, FAQs) and a monochrome, editorial AIRi@UTCN interface.
 
 This is a production-oriented application backed by a real API, server-side RBAC/CSRF, SQLite persistence, and S3-compatible object storage — not a mock or `localStorage` demo.
 
@@ -73,6 +73,28 @@ Privacy model:
 - Questions are **private by default** — visible only to the asking student, the owning professor, and admins.
 - When asking, a student may tick *"Allow this question to be shown anonymously to other students if answered."* If checked and once answered, the Q&A appears publicly on the opportunity detail page **without the student's name**.
 - Private questions are never exposed to other students or non-owning professors. Public answered questions are always anonymized for everyone except the asker, the owning professor, and admins.
+
+## Application Review Workspace
+
+A dedicated workspace at `/professor/applications` lets approved professors review applicants to their own opportunities professionally.
+
+Statuses follow a richer flow — **new → under_review → shortlisted → accepted / rejected**. Legacy `pending` rows are migrated to `new` at boot (idempotent, non-destructive) and `pending` is still accepted as an alias.
+
+Professors can:
+
+- see all applications for opportunities they own, with header stats (Total, New, Under review, Shortlisted, Accepted, Rejected);
+- filter by opportunity, filter by status, and search by student name/email; sort by newest, status, or score;
+- open an applicant drawer to view profile info, LinkedIn, research interests/skills, application answers, and securely download CV/transcript (via the existing protected, owner-gated download endpoints);
+- set a **score** (1–5), write **private notes** (never shown to students), and move the application **Under review / Shortlist / Accept / Reject**;
+- **Export CSV** of applications (respecting current filters).
+
+Security & privacy:
+
+- All review endpoints require an **approved professor** and enforce opportunity ownership server-side — a professor can only see/modify applications for their own opportunities; identity is taken from the session, never the request body.
+- Private review data (notes, score) is only returned by the professor endpoints and is **never** included in any student-facing response.
+- The CSV export contains text fields only — it never includes document contents or protected object-storage URLs.
+
+Notifications are created **only on a real status change** (under_review, shortlisted, accepted, rejected) — never for notes-only or score-only updates, and never when the status is unchanged. Students see the friendly status in **My Opportunities** (Submitted / Under review / Shortlisted / Accepted / Rejected), with a positive "Your application has been shortlisted." note when shortlisted.
 
 ## Professor & Research Group Profiles
 
@@ -163,7 +185,7 @@ Passwords and password hashes are never returned by the API.
 ## Backend Architecture
 
 - **Express API** (`backend/index.js`) mounts feature routers under both `/` and `/api`, with `helmet`, credentialed CORS, `cookie-parser`, JSON/body limits, and the CSRF guard.
-- **Routes** (`backend/routes/`): `auth` (signup/login/logout/me), `admin` (approvals, user management), `opportunities` (public listing/detail, create/edit/delete), `applications` (apply, status updates, protected file downloads), `profile` (profile, avatar, documents, saved opportunities, my-opportunities), `notifications`, and `questions` (Q&A).
+- **Routes** (`backend/routes/`): `auth` (signup/login/logout/me), `admin` (approvals, user management), `opportunities` (public listing/detail, create/edit/delete), `applications` (apply, status updates, protected file downloads), `professorApplications` (review workspace: list/review/CSV export), `profile` (profile, avatar, documents, saved opportunities, my-opportunities), `professors` (public directory/profiles), `recommendations`, `notifications`, and `questions` (Q&A).
 - **Persistence** (`backend/db.js`): SQLite accessed through small promisified `run`/`get`/`all` helpers. `initDb()` creates every table with `CREATE TABLE IF NOT EXISTS` on boot and runs **idempotent runtime schema repair** (`ensureApplicationFileColumns`, `ensureUserProfileColumns`, `ensureOpportunityColumns`, `ensureOpportunityQuestionColumns`) that `ALTER TABLE ... ADD COLUMN` only when a column is missing. Schema changes are additive and never reset or drop data.
 - **Storage service** (`backend/services/storage.js`): an S3-compatible client for production/MinIO plus a local-filesystem provider used by tests; both expose the same put/get/delete interface and keep credentials backend-only.
 - **Validation** (`backend/utils/validation.js`): pure validators (`validateSignup`, `validateLogin`, `validateOpportunity`, `validateApplication`, `validateStatusUpdate`, `validateQuestion`, `validateQuestionAnswer`) plus `asString`/`cleanUser` helpers.
@@ -182,6 +204,7 @@ Pages and key components:
 | `/applications` | My Opportunities (`StudentApplications`) |
 | `/profile` | My Profile (`ProfilePage`) |
 | professor dashboard | `TeacherDashboard` + `ProfessorQuestions` + `CreateOpportunity`/`EditOpportunity` |
+| `/professor/applications` | Application Review Workspace (`teacher/ApplicationReviewWorkspace`) |
 | `/admin` | Admin Dashboard (`AdminDashboard`) |
 | `/how-it-works` | How It Works (`info/HowItWorks`) |
 | `/for-professors` | For Professors (`info/ForProfessors`) |
@@ -235,6 +258,9 @@ Shared chrome: `Header` (role-aware navigation + notifications), `Footer` (Quick
 | `GET` | `/api/professors/:id` | Public; approved professor profile + their active opportunities (404 if not found/approved) |
 | `GET` | `/api/professors/:id/avatar` | Public; approved professor avatar image only (never documents) |
 | `GET` | `/api/recommendations/opportunities` | Student only; ranked recommendations with reasons, excludes already-applied |
+| `GET` | `/api/professor/applications` | Approved professor; own-opportunity applications, filters `opportunityId`/`status`/`search` |
+| `PATCH` | `/api/professor/applications/:applicationId/review` | Owning approved professor; update status/score/notes, CSRF required; notifies on status change |
+| `GET` | `/api/professor/applications/export` | Approved professor; CSV of own applications (no file contents/URLs) |
 | `GET` | `/api/notifications` | Authenticated current user; `?unread=true` filter, returns `unreadCount` |
 | `PATCH` | `/api/notifications/:id/read` | Authenticated owner, CSRF required |
 | `PATCH` | `/api/notifications/read-all` | Authenticated current user, CSRF required |
@@ -514,3 +540,5 @@ Manual flow:
 - **Research groups** are modeled as a lab/group name field on the professor profile, not as standalone entities. Dedicated `research_groups`/`research_group_members` tables, group pages, and membership are a future enhancement; the professor-profile fields cover the first version.
 - Recommendations are a transparent rule-based ranking (tag/text/behavioral overlap), not a trained model; there is intentionally no "AI" claim. They are computed on demand and not cached.
 - Recommendations do not generate notifications (to avoid spam).
+- Application scoring is a single 1–5 score plus private notes (not a multi-field rubric); a richer rubric (technical/motivation/experience/availability) is a future enhancement.
+- The review workspace filters/sorts client-side over the professor's loaded applications; server-side filters exist on the list and export endpoints but pagination is not yet implemented for very large applicant pools.

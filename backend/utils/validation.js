@@ -79,6 +79,31 @@ function validateStatusUpdate(body) {
 const MAX_QUESTION = 1000;
 const MAX_ANSWER = 2000;
 
+const REVIEW_STATUSES = new Set(['new', 'under_review', 'shortlisted', 'accepted', 'rejected']);
+
+function normalizeApplicationStatus(value) {
+  const status = asString(value);
+  if (status === 'pending' || status === '') return 'new';
+  return REVIEW_STATUSES.has(status) ? status : 'new';
+}
+
+function validateReview(body) {
+  if (body.status !== undefined && !REVIEW_STATUSES.has(asString(body.status))) {
+    return 'Status must be one of new, under_review, shortlisted, accepted, rejected';
+  }
+  if (body.score !== undefined && body.score !== null && body.score !== '') {
+    const score = Number(body.score);
+    if (!Number.isInteger(score) || score < 1 || score > 5) return 'Score must be an integer from 1 to 5';
+  }
+  if (body.professorNotes !== undefined && asString(body.professorNotes).length > MAX_TEXT) {
+    return `Notes must be under ${MAX_TEXT} characters`;
+  }
+  if (body.status === undefined && body.score === undefined && body.professorNotes === undefined) {
+    return 'Provide a status, score, or notes to update';
+  }
+  return null;
+}
+
 function validateQuestion(body) {
   const text = asString(body.questionText);
   if (!text) return 'Question is required';
@@ -104,4 +129,7 @@ module.exports = {
   validateStatusUpdate,
   validateQuestion,
   validateQuestionAnswer,
+  validateReview,
+  normalizeApplicationStatus,
+  REVIEW_STATUSES,
 };

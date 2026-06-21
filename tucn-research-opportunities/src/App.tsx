@@ -11,6 +11,7 @@ import OpportunityList from './components/common/OpportunityList';
 import OpportunityDetail from './components/common/OpportunityDetail';
 import CreateOpportunity from './components/teacher/CreateOpportunity';
 import TeacherDashboard from './components/teacher/TeacherDashboard';
+import ApplicationReviewWorkspace from './components/teacher/ApplicationReviewWorkspace';
 import StudentApplications from './components/student/StudentApplications';
 import ApplicationModal from './components/student/ApplicationModal';
 import ProfilePage from './components/profile/ProfilePage';
@@ -29,7 +30,7 @@ import { apiFetch, resetCsrfToken } from './api';
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 const INITIAL_OPPORTUNITIES: Opportunity[] = DEMO_MODE ? MOCK_OPPORTUNITIES : [];
 
-type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile' | 'howItWorks' | 'forProfessors' | 'faqs' | 'professors' | 'professorDetail' | 'notifications' | 'notFound';
+type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile' | 'howItWorks' | 'forProfessors' | 'faqs' | 'professors' | 'professorDetail' | 'notifications' | 'reviewWorkspace' | 'notFound';
 
 function parseRoute(pathname: string): { view: View; opportunityId?: string; professorId?: string } {
   if (pathname === '/login' || pathname === '/admin') return { view: 'login' };
@@ -40,6 +41,7 @@ function parseRoute(pathname: string): { view: View; opportunityId?: string; pro
   if (pathname === '/for-professors') return { view: 'forProfessors' };
   if (pathname === '/faqs') return { view: 'faqs' };
   if (pathname === '/notifications') return { view: 'notifications' };
+  if (pathname === '/professor/applications') return { view: 'reviewWorkspace' };
   if (pathname === '/professors') return { view: 'professors' };
   const profMatch = pathname.match(/^\/professors\/([^/]+)$/);
   if (profMatch) return { view: 'professorDetail', professorId: decodeURIComponent(profMatch[1]) };
@@ -155,6 +157,13 @@ export default function App() {
     setShowUserMenu(false);
     setView('professors');
     pushPath('/professors');
+    window.scrollTo(0, 0);
+  };
+
+  const goToReviewWorkspace = () => {
+    setShowUserMenu(false);
+    setView('reviewWorkspace');
+    pushPath('/professor/applications');
     window.scrollTo(0, 0);
   };
 
@@ -535,7 +544,7 @@ export default function App() {
           await loadOpportunityById(route.opportunityId);
         } else if (route.view === 'notFound') {
           setView('notFound');
-        } else if (!authenticatedUser && ['profile', 'applications', 'create'].includes(route.view)) {
+        } else if (!authenticatedUser && ['profile', 'applications', 'create', 'reviewWorkspace'].includes(route.view)) {
           setView('login');
           window.history.replaceState({}, '', '/login');
         }
@@ -551,7 +560,7 @@ export default function App() {
         setSelectedOpportunity(null);
         setApplyModalOpen(false);
         if (route.professorId) setSelectedProfessorId(route.professorId);
-        if (['profile', 'applications', 'create'].includes(route.view) && !currentUserRef.current) setView('login');
+        if (['profile', 'applications', 'create', 'reviewWorkspace'].includes(route.view) && !currentUserRef.current) setView('login');
         else setView(route.view);
       }
     };
@@ -802,14 +811,17 @@ export default function App() {
               setOpportunities={setOpportunities}
               setView={setView}
             />
+          ) : view === 'reviewWorkspace' && currentUser?.role === 'professor' ? (
+            <ApplicationReviewWorkspace onBack={goToDashboard} />
           ) : view === 'dashboard' && currentUser?.role === 'professor' ? (
-            <TeacherDashboard 
+            <TeacherDashboard
               currentUser={currentUser}
               opportunities={opportunities}
               applications={applications}
               updateApplicationStatus={updateApplicationStatus}
               setOpportunities={setOpportunities}
               setView={setView}
+              onOpenReviews={goToReviewWorkspace}
             />
           ) : view === 'dashboard' && currentUser?.role === 'admin' ? (
             // Admin dashboard for approving professor accounts and managing users/posts

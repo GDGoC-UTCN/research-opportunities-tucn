@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { ArrowLeft, Calendar as CalendarIcon, Clock, DollarSign, Bookmark, Share2, CheckCircle2, HelpCircle } from 'lucide-react';
 import { ApplicationStatus, Opportunity, User, Application } from '../../types';
 import OpportunityQA from './OpportunityQA';
+import { statusLabel, statusBadge } from '../../lib/applicationStatus';
 
 interface Props {
   selectedOpportunity: Opportunity;
@@ -17,18 +18,6 @@ interface Props {
   onSignInToAsk: () => void;
   onOpenProfessor: (professorId: string) => void;
 }
-
-const STATUS_STYLES: Record<ApplicationStatus, string> = {
-  pending: 'bg-amber-50 text-amber-700 border border-amber-200',
-  accepted: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  rejected: 'bg-red-50 text-red-600 border border-red-200',
-};
-
-const STATUS_LABEL: Record<ApplicationStatus, string> = {
-  pending: 'Applied',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-};
 
 export default function OpportunityDetail({
   selectedOpportunity,
@@ -232,8 +221,8 @@ export default function OpportunityDetail({
 
             <div className="flex gap-2.5">
               {applicationStatus ? (
-                <span className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold ${STATUS_STYLES[applicationStatus]}`}>
-                  <Bookmark size={15} fill="currentColor" /> {STATUS_LABEL[applicationStatus]}
+                <span className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold ${statusBadge(applicationStatus)}`}>
+                  <Bookmark size={15} fill="currentColor" /> {statusLabel(applicationStatus)}
                 </span>
               ) : (
                 <button
