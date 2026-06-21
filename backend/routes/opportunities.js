@@ -2,6 +2,7 @@ const express = require('express');
 const { all, run, get } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
 const { requireAuth, requireApprovedProfessor } = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
 const { validateOpportunity, asString } = require('../utils/validation');
 const { deleteApplicationObjectsForOpportunity } = require('../utils/fileCleanup');
 
@@ -30,6 +31,7 @@ function mapOpportunity(r) {
     applicationFields: parseJson(r.application_fields, []),
     requireCv: !!r.require_cv,
     requireTranscript: !!r.require_transcript,
+    status: r.status || 'active',
     requirements: { technical: ['To be specified'], eligibility: ['To be specified'] },
     author: {
       id: String(r.author_id),
@@ -40,14 +42,35 @@ function mapOpportunity(r) {
   };
 }
 
+function softAuthUser(req) {
+  const token = req.cookies?.tucn_auth || (req.get('authorization') || '').replace(/^bearer\s/i, '');
+  if (!token) return null;
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
 router.get('/opportunities', asyncHandler(async (req, res) => {
-  const rows = await all('SELECT * FROM opportunities ORDER BY created_at DESC');
+  const user = softAuthUser(req);
+  let rows = await all('SELECT * FROM opportunities ORDER BY created_at DESC');
+  if (!user || user.role !== 'admin') {
+    rows = rows.filter(r => r.status === 'active' || (user?.role === 'professor' && String(r.author_id) === String(user.sub)));
+  }
   res.json({ opportunities: rows.map(mapOpportunity) });
 }));
 
 router.get('/opportunities/:id', asyncHandler(async (req, res) => {
   const row = await get('SELECT * FROM opportunities WHERE id = ?', [req.params.id]);
   if (!row) throw httpError(404, 'Opportunity not found');
+  const user = softAuthUser(req);
+  if (row.status !== 'active') {
+    if (!user) throw httpError(404, 'Opportunity not found');
+    if (user.role !== 'admin' && String(row.author_id) !== String(user.sub)) {
+      throw httpError(404, 'Opportunity not found');
+    }
+  }
   res.json({ opportunity: mapOpportunity(row) });
 }));
 
@@ -85,6 +108,58 @@ router.post('/opportunities', requireAuth, requireApprovedProfessor, asyncHandle
   );
 
   res.status(201).json({ id: String(result.lastID) });
+}));
+
+router.patch('/opportunities/:id', requireAuth, requireApprovedProfessor, asyncHandler(async (req, res) => {
+  const opportunity = await get('SELECT id,author_id FROM opportunities WHERE id = ?', [req.params.id]);
+  if (!opportunity) throw httpError(404, 'Opportunity not found');
+  if (String(opportunity.author_id) !== String(req.user.id) && req.user.role !== 'admin') {
+    throw httpError(403, 'Forbidden');
+  }
+
+  const updates = [];
+  const params = [];
+  
+  if (req.body.title !== undefined) {
+    updates.push('title = ?');
+    params.push(asString(req.body.title));
+  }
+  if (req.body.description !== undefined) {
+    updates.push('description = ?');
+    params.push(asString(req.body.description));
+  }
+  if (req.body.abstract !== undefined) {
+    updates.push('abstract = ?');
+    params.push(asString(req.body.abstract));
+  }
+  if (req.body.stipend !== undefined) {
+    updates.push('stipend = ?');
+    params.push(asString(req.body.stipend));
+  }
+  if (req.body.duration !== undefined) {
+    updates.push('duration = ?');
+    params.push(asString(req.body.duration));
+  }
+  if (req.body.deadline !== undefined) {
+    updates.push('deadline = ?');
+    params.push(asString(req.body.deadline));
+  }
+  if (req.body.status !== undefined) {
+    updates.push('status = ?');
+    params.push(req.body.status === 'archived' ? 'archived' : 'active');
+  }
+  if (req.body.tags !== undefined) {
+    updates.push('tags = ?');
+    const tags = Array.isArray(req.body.tags) ? req.body.tags.map(asString).filter(Boolean).slice(0, 20) : [];
+    params.push(JSON.stringify(tags));
+  }
+
+  if (updates.length > 0) {
+    params.push(req.params.id);
+    await run(`UPDATE opportunities SET ${updates.join(', ')} WHERE id = ?`, params);
+  }
+
+  res.json({ ok: true });
 }));
 
 router.delete('/opportunities/:id', requireAuth, asyncHandler(async (req, res) => {

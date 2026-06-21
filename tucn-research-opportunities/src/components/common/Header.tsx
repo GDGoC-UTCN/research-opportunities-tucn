@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { School, CheckCircle2, User as UserIcon, ChevronDown, Plus, LogOut, LayoutDashboard, LogIn, Settings } from 'lucide-react';
+import { School, CheckCircle2, User as UserIcon, ChevronDown, Plus, LogOut, LayoutDashboard, LogIn, Settings, Bell, Check } from 'lucide-react';
 import { User } from '../../types';
+import { apiFetch } from '../../api';
 import Logo from './Logo';
 
 interface Props {
@@ -13,7 +14,31 @@ interface Props {
 }
 
 export default function Header({ currentUser, setView, showUserMenu, setShowUserMenu, handleLogout }: Props) {
+  const [notifications, setNotifications] = React.useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = React.useState(false);
   const homeView = currentUser?.role === 'professor' ? 'dashboard' : currentUser?.role === 'admin' ? 'dashboard' : 'list';
+
+  React.useEffect(() => {
+    if (currentUser) {
+      apiFetch('/api/notifications').then(r => r.json()).then(data => {
+        if (data.notifications) setNotifications(data.notifications);
+      }).catch(console.error);
+    } else {
+      setNotifications([]);
+    }
+  }, [currentUser]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAsRead = async (id: string) => {
+    await apiFetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: 1 } : n));
+  };
+
+  const markAllAsRead = async () => {
+    await apiFetch('/api/notifications/read-all', { method: 'PATCH' });
+    setNotifications(prev => prev.map(n => ({ ...n, read: 1 })));
+  };
   const navigate = (view: 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile') => {
     setView(view);
     setShowUserMenu(false);
@@ -86,10 +111,79 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
               </nav>
             )}
 
+            {/* Notifications */}
+            {currentUser && (
+              <div className="relative mr-2">
+                <button
+                  onClick={() => {
+                    setShowNotifications(!showNotifications);
+                    setShowUserMenu(false);
+                  }}
+                  className="relative p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-utcn-navy"></span>
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-30 overflow-hidden text-gray-800"
+                    >
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-slate-50">
+                        <h3 className="font-semibold text-sm">Notifications</h3>
+                        {unreadCount > 0 && (
+                          <button onClick={markAllAsRead} className="text-xs text-utcn-primary hover:underline flex items-center gap-1">
+                            <Check size={12} /> Mark all as read
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-gray-400 text-sm">
+                            No notifications yet
+                          </div>
+                        ) : (
+                          notifications.map(n => (
+                            <button
+                              key={n.id}
+                              onClick={() => { if (!n.read) markAsRead(n.id); }}
+                              className={`w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''}`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <h4 className={`text-sm ${!n.read ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>
+                                    {n.title}
+                                  </h4>
+                                  <p className={`text-xs mt-1 line-clamp-2 ${!n.read ? 'text-gray-700' : 'text-gray-500'}`}>
+                                    {n.message}
+                                  </p>
+                                </div>
+                                {!n.read && <div className="w-2 h-2 rounded-full bg-utcn-primary mt-1 flex-shrink-0" />}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
             {/* User menu */}
             <div className="relative">
               <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
+                onClick={() => {
+                  setShowUserMenu(!showUserMenu);
+                  setShowNotifications(false);
+                }}
                 className="flex items-center gap-2 focus:outline-none p-1.5 rounded-xl hover:bg-white/10 transition-colors"
               >
                 {currentUser ? (

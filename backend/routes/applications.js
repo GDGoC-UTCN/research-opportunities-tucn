@@ -274,7 +274,7 @@ router.post('/applications', requireAuth, requireRole('student'), applicationUpl
   if (validationError) throw httpError(400, validationError);
 
   const opportunityId = asString(req.body.opportunityId);
-  const opportunity = await get('SELECT id,require_cv,require_transcript FROM opportunities WHERE id = ?', [opportunityId]);
+  const opportunity = await get('SELECT id,title,author_id,require_cv,require_transcript FROM opportunities WHERE id = ?', [opportunityId]);
   if (!opportunity) throw httpError(404, 'Opportunity not found');
   const cvFile = req.files?.cv?.[0];
   const transcriptFile = req.files?.transcript?.[0];
@@ -366,6 +366,11 @@ router.post('/applications', requireAuth, requireRole('student'), applicationUpl
       console.error('Failed to remove saved opportunity after application submission', err);
     });
 
+    await run(
+      'INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)',
+      [String(opportunity.author_id), 'New Application', `${req.user.name} applied to your opportunity "${opportunity.title}".`]
+    ).catch(err => console.error('Failed to create notification', err));
+
     return res.status(201).json({ id: applicationId });
   } catch (err) {
     const ownApplicationUploads = uploaded.filter(key => key.startsWith(`applications/${applicationId}/`));
@@ -413,7 +418,7 @@ router.patch('/applications/:id', requireAuth, requireApprovedProfessor, asyncHa
   if (validationError) throw httpError(400, validationError);
 
   const application = await get(
-    `SELECT a.id, o.author_id
+    `SELECT a.id, a.student_id, o.author_id, o.title
      FROM applications a
      INNER JOIN opportunities o ON o.id = a.opportunity_id
      WHERE a.id = ?`,
@@ -433,6 +438,11 @@ router.patch('/applications/:id', requireAuth, requireApprovedProfessor, asyncHa
       req.params.id,
     ]
   );
+
+  await run(
+    'INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)',
+    [String(application.student_id), 'Application Status Updated', `Your application for "${application.title}" was updated to ${asString(req.body.status)}.`]
+  ).catch(err => console.error('Failed to create notification', err));
 
   res.json({ ok: true });
 }));

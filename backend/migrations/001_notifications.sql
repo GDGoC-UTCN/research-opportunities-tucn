@@ -1,0 +1,12 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT,
+  read INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE opportunities ADD COLUMN status TEXT DEFAULT 'active';
