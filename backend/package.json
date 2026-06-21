@@ -6,7 +6,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "migrate": "knex migrate:latest --knexfile knexfile.js",
-    "seed-admin": "knex seed:run --knexfile knexfile.js --specific=01_admin_seed.js || node seed-admin.js",
+    "seed-admin": "node seed-admin.js",
     "smoke": "node smoke-test.js"
   },
   "dependencies": {

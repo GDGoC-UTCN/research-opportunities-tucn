@@ -1,3 +1,9 @@
+// DEPRECATED: This knex seed is no longer used. Admin seeding now runs through
+// the DB_PATH-aware `node seed-admin.js` script (see backend/package.json
+// "seed-admin" and the deploy/start.sh flow). The knex seed connected using the
+// development SQLite path from knexfile.js, which does not match the Docker
+// DB_PATH (/data/data.sqlite) and produced a noisy "no such table: users"
+// error during deploy. Kept only for reference; do not wire it into npm scripts.
 const bcrypt = require('bcryptjs');
 
 exports.seed = async function(knex) {
