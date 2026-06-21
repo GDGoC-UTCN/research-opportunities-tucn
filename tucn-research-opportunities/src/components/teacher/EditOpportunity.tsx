@@ -1,0 +1,289 @@
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import { X, ArrowLeft } from 'lucide-react';
+import { Opportunity, ApplicationField, User } from '../../types';
+import { apiFetch } from '../../api';
+
+interface Props {
+  currentUser: User;
+  opportunityToEdit: Opportunity;
+  setOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
+  setView: (view: 'dashboard' | 'list') => void;
+  onClose: () => void;
+}
+
+export default function EditOpportunity({ currentUser, opportunityToEdit, setOpportunities, setView, onClose }: Props) {
+  const [newOppFields, setNewOppFields] = useState<ApplicationField[]>(opportunityToEdit.applicationFields || []);
+  const [newFieldQuestion, setNewFieldQuestion] = useState('');
+  const [tags, setTags] = useState<string[]>(opportunityToEdit.tags || []);
+  const [newTag, setNewTag] = useState('');
+  const [requireCv, setRequireCv] = useState(opportunityToEdit.requireCv || false);
+  const [requireTranscript, setRequireTranscript] = useState(opportunityToEdit.requireTranscript || false);
+  const [status, setStatus] = useState(opportunityToEdit.status || 'active');
+
+  const addField = () => {
+    if (newFieldQuestion.trim() && newOppFields.length < 20) {
+      setNewOppFields([...newOppFields, { id: Date.now().toString(), question: newFieldQuestion.trim() }]);
+      setNewFieldQuestion('');
+    }
+  };
+
+  const addTag = () => {
+    const t = newTag.trim().toUpperCase();
+    if (t && !tags.includes(t) && tags.length < 10) {
+      setTags([...tags, t]);
+      setNewTag('');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const updatedOpp: Opportunity = {
+      ...opportunityToEdit,
+      title:       formData.get('title') as string,
+      abstract:    formData.get('abstract') as string,
+      description: formData.get('description') as string,
+      stipend:     formData.get('stipend') as string,
+      duration:    formData.get('duration') as string,
+      tags,
+      applicationFields: newOppFields,
+      requireCv,
+      requireTranscript,
+      status,
+    };
+
+    try {
+      const response = await apiFetch(`/api/opportunities/${opportunityToEdit.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: updatedOpp.title,
+          description: updatedOpp.description,
+          abstract: updatedOpp.abstract,
+          stipend: updatedOpp.stipend,
+          duration: updatedOpp.duration,
+          tags: updatedOpp.tags,
+          applicationFields: updatedOpp.applicationFields,
+          requireCv: updatedOpp.requireCv,
+          requireTranscript: updatedOpp.requireTranscript,
+          status: updatedOpp.status,
+        }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || 'Failed to update opportunity');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update opportunity');
+      return;
+    }
+
+    setOpportunities(prev => prev.map(o => o.id === updatedOpp.id ? updatedOpp : o));
+    onClose();
+  };
+
+  const inputClass = 'w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-utcn-primary focus:border-transparent outline-none transition bg-white placeholder:text-gray-300';
+  const labelClass = 'block text-sm font-semibold text-gray-700 mb-1.5';
+
+  return (
+    <motion.div
+      key="create"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="max-w-3xl mx-auto"
+    >
+      {/* Back nav */}
+      <button
+        onClick={onClose}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-utcn-primary mb-5 transition-colors group"
+      >
+        <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+        Back to Dashboard
+      </button>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-utcn-navy to-utcn-primary px-8 py-7 text-white">
+          <h1 className="text-xl font-bold">Edit Research Opportunity</h1>
+          <p className="text-blue-200 text-sm mt-1">Update your existing project details.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-7 md:p-8 space-y-5">
+
+          {/* Title */}
+          <div>
+            <label className={labelClass}>Title <span className="text-red-400">*</span></label>
+            <input name="title" defaultValue={opportunityToEdit.title} required type="text" placeholder="e.g. Deep Learning for Medical Imaging" className={inputClass} />
+          </div>
+
+          {/* Short Description */}
+          <div>
+            <label className={labelClass}>Short Description <span className="text-red-400">*</span></label>
+            <input name="description" defaultValue={opportunityToEdit.description} required type="text" placeholder="A one-line summary for the card view" className={inputClass} />
+          </div>
+
+          {/* Abstract */}
+          <div>
+            <label className={labelClass}>Full Abstract <span className="text-red-400">*</span></label>
+            <textarea name="abstract" defaultValue={opportunityToEdit.abstract} required rows={4} placeholder="Describe the research project in detail…" className={`${inputClass} resize-none`} />
+          </div>
+
+          {/* Duration + Stipend */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Duration <span className="text-red-400">*</span></label>
+              <input name="duration" defaultValue={opportunityToEdit.duration} required type="text" placeholder="e.g. 6 Months" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Stipend / Funding <span className="text-red-400">*</span></label>
+              <input name="stipend" defaultValue={opportunityToEdit.stipend} required type="text" placeholder="e.g. Unpaid or €1,000" className={inputClass} />
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div className="pt-5 border-t border-gray-100">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Tags</label>
+                <p className="text-xs text-gray-400 mt-0.5">Add keywords (e.g. AI, MACHINE LEARNING, PAID)</p>
+              </div>
+              <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">{tags.length}/10</span>
+            </div>
+
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {tags.map(tag => (
+                  <span key={tag} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setTags(prev => prev.filter(t => t !== tag))}
+                      className="text-blue-400 hover:text-blue-800 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTag}
+                onChange={e => setNewTag(e.target.value.toUpperCase())}
+                placeholder="Add a tag..."
+                className={`${inputClass} flex-1`}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+              />
+              <button
+                type="button"
+                onClick={addTag}
+                disabled={!newTag.trim() || tags.length >= 10}
+                className="px-4 py-2.5 bg-slate-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-slate-200 disabled:opacity-40 transition-colors flex-shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Application Questions */}
+          <div className="pt-5 border-t border-gray-100">
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-700">Application Questions</label>
+                <p className="text-xs text-gray-400 mt-0.5">Optional — students will answer these when applying</p>
+              </div>
+              <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">{newOppFields.length}/20</span>
+            </div>
+
+            {newOppFields.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {newOppFields.map((field, idx) => (
+                  <div key={field.id} className="flex gap-2 items-center bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5">
+                    <span className="text-xs font-bold text-gray-400 w-5 flex-shrink-0">{idx + 1}.</span>
+                    <span className="text-sm text-gray-700 flex-1">{field.question}</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewOppFields(prev => prev.filter(f => f.id !== field.id))}
+                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newFieldQuestion}
+                onChange={e => setNewFieldQuestion(e.target.value)}
+                placeholder="Add a question for applicants…"
+                className={`${inputClass} flex-1`}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addField(); } }}
+              />
+              <button
+                type="button"
+                onClick={addField}
+                disabled={!newFieldQuestion.trim() || newOppFields.length >= 20}
+                className="px-4 py-2.5 bg-slate-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-slate-200 disabled:opacity-40 transition-colors flex-shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Document requirements */}
+          <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
+            <p className="text-sm font-semibold text-gray-700">Application Documents</p>
+            <p className="text-xs text-gray-400">Require these documents from applicants?</p>
+            <div className="flex gap-4 items-center">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={requireCv} onChange={e => setRequireCv(e.target.checked)} className="form-checkbox h-4 w-4 text-utcn-primary" />
+                <span>Require CV / Résumé</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={requireTranscript} onChange={e => setRequireTranscript(e.target.checked)} className="form-checkbox h-4 w-4 text-utcn-primary" />
+                <span>Require Transcript of Notes</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
+            <p className="text-sm font-semibold text-gray-700">Visibility Status</p>
+            <div className="flex gap-4 items-center">
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="status" checked={status === 'active'} onChange={() => setStatus('active')} className="h-4 w-4 text-utcn-primary" />
+                <span>Active (Publicly visible)</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="radio" name="status" checked={status === 'archived'} onChange={() => setStatus('archived')} className="h-4 w-4 text-red-500" />
+                <span className="text-red-600 font-medium">Archived (Hidden from students)</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="pt-5 border-t border-gray-100 flex items-center gap-3">
+            <button
+              type="submit"
+              className="bg-utcn-primary text-white px-7 py-3 rounded-xl font-semibold text-sm hover:bg-utcn-primary-dark transition-colors shadow-md shadow-blue-100"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-3 rounded-xl font-semibold text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </motion.div>
+  );
+}

@@ -27,6 +27,7 @@ export interface Opportunity {
   // whether the professor requires CV / transcript when students apply
   requireCv?: boolean;
   requireTranscript?: boolean;
+  status?: 'active' | 'archived';
 }
 
 export type Role = 'student' | 'professor' | 'admin';
