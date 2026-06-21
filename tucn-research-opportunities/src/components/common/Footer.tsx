@@ -11,11 +11,11 @@ const QUICK_LINKS = [
 
 export default function Footer({ onNavigate }: Props) {
   return (
-    <footer className="bg-utcn-navy text-white w-full mt-16">
-      {/* Red accent top border */}
-      <div className="h-1 bg-utcn-red w-full" />
+    <footer className="relative bg-utcn-navy text-white w-full mt-16 overflow-hidden">
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-utcn-red/70 to-transparent" />
+      <div className="absolute inset-0 research-grid-dark research-fade opacity-50" aria-hidden="true" />
 
-      <div className="container mx-auto px-6 lg:px-8 py-12">
+      <div className="relative container mx-auto px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
 
           {/* Column 1 — Brand */}
@@ -25,25 +25,25 @@ export default function Footer({ onNavigate }: Props) {
                 <img src="/airi.svg" alt="AIRi@UTCN" className="h-5 w-7 object-contain" />
               </div>
               <div>
-                <p className="text-[10px] font-bold tracking-widest uppercase text-blue-300">AIRi@UTCN</p>
-                <p className="text-sm font-bold leading-none">Research Opportunities</p>
+                <p className="text-[10px] font-semibold tracking-widest uppercase text-white/45">AIRi@UTCN</p>
+                <p className="text-sm font-display leading-none">Research Opportunities</p>
               </div>
             </div>
-            <p className="text-sm text-blue-200 leading-relaxed max-w-xs">
-              AIRi@UTCN research opportunities at the Technical University of Cluj-Napoca, connecting students with professors and applied AI projects.
+            <p className="text-sm text-white/55 leading-relaxed max-w-xs">
+              A research discovery platform at the Technical University of Cluj-Napoca, connecting students with faculty and applied research projects.
             </p>
           </div>
 
           {/* Column 2 — Quick Links */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-4">Quick Links</h4>
-            <ul className="space-y-2.5 text-sm text-blue-200">
+            <h4 className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-4">Quick Links</h4>
+            <ul className="space-y-2.5 text-sm text-white/60">
               {QUICK_LINKS.map(({ label, href }) => (
                 <li key={label}>
                   <a
                     href={href}
                     onClick={(e) => { e.preventDefault(); onNavigate(href); }}
-                    className="hover:text-white transition-colors hover:underline underline-offset-2"
+                    className="hover:text-white transition-colors hover:underline underline-offset-4 decoration-utcn-red/60"
                   >
                     {label}
                   </a>
@@ -54,18 +54,18 @@ export default function Footer({ onNavigate }: Props) {
 
           {/* Column 3 — Contact */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-4">Contact</h4>
-            <ul className="space-y-2.5 text-sm text-blue-200">
+            <h4 className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-4">Contact</h4>
+            <ul className="space-y-2.5 text-sm text-white/60">
               <li>
-                <span className="text-white/50 text-xs uppercase tracking-wider block mb-0.5">Address</span>
+                <span className="text-white/35 text-xs uppercase tracking-wider block mb-0.5">Address</span>
                 Str. Memorandumului 28, Cluj-Napoca, Romania
               </li>
               <li>
-                <span className="text-white/50 text-xs uppercase tracking-wider block mb-0.5">Email</span>
+                <span className="text-white/35 text-xs uppercase tracking-wider block mb-0.5">Email</span>
                 <a href="mailto:AIRI@campus.utcluj.ro" className="hover:text-white transition-colors">AIRI@campus.utcluj.ro</a>
               </li>
               <li>
-                <span className="text-white/50 text-xs uppercase tracking-wider block mb-0.5">Website</span>
+                <span className="text-white/35 text-xs uppercase tracking-wider block mb-0.5">Website</span>
                 <a href="https://utcluj.ro" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">utcluj.ro</a>
               </li>
             </ul>
@@ -73,7 +73,7 @@ export default function Footer({ onNavigate }: Props) {
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-blue-300">
+        <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-white/45">
           <p>&copy; {new Date().getFullYear()} Technical University of Cluj-Napoca. All rights reserved.</p>
           <div className="flex gap-5">
             <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>

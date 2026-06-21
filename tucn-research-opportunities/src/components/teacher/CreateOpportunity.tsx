@@ -112,9 +112,9 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-utcn-navy to-utcn-primary px-8 py-7 text-white">
-          <h1 className="text-xl font-bold">Post a New Research Opportunity</h1>
-          <p className="text-blue-200 text-sm mt-1">Fill in the details below. Students will see this on the board.</p>
+        <div className="bg-gradient-to-r from-utcn-navy to-utcn-navy-light px-8 py-7 text-white">
+          <h1 className="font-display text-2xl">Post a New Research Opportunity</h1>
+          <p className="text-white/60 text-sm mt-1">Fill in the details below. Students will see this on the board.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-7 md:p-8 space-y-5">
@@ -164,7 +164,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
                 {tags.map(tag => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-blue-50 text-utcn-primary border border-blue-100 px-2.5 py-1 rounded-md"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-zinc-100 text-utcn-primary border border-zinc-200 px-2.5 py-1 rounded-md"
                   >
                     {tag}
                     <button
@@ -268,7 +268,7 @@ export default function CreateOpportunity({ currentUser, opportunities, setOppor
           <div className="pt-5 border-t border-gray-100 flex items-center gap-3">
             <button
               type="submit"
-              className="bg-utcn-primary text-white px-7 py-3 rounded-xl font-semibold text-sm hover:bg-utcn-primary-dark transition-colors shadow-md shadow-blue-100"
+              className="bg-utcn-primary text-white px-7 py-3 rounded-xl font-semibold text-sm hover:bg-utcn-primary-dark transition-colors shadow-md shadow-zinc-900/10"
             >
               Publish Opportunity
             </button>

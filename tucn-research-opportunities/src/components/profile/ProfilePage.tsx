@@ -237,10 +237,18 @@ export default function ProfilePage({
         <ArrowLeft size={15} /> Back
       </button>
 
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b bg-slate-50">
-          <h1 className="text-xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your profile details and default application documents.</p>
+      <div className="bg-white border border-zinc-200/80 rounded-2xl shadow-sm overflow-hidden">
+        <div className="relative px-6 py-7 border-b border-white/10 bg-utcn-navy text-white overflow-hidden">
+          <div className="absolute inset-0 research-grid-dark research-fade opacity-60" aria-hidden="true" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-utcn-red/70 to-transparent" aria-hidden="true" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="signal-dot" aria-hidden="true" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45">Your account</span>
+            </div>
+            <h1 className="font-display text-2xl text-white">My Profile</h1>
+            <p className="text-sm text-white/55 mt-1">Manage your profile details and default application documents.</p>
+          </div>
         </div>
 
         {loading ? (
