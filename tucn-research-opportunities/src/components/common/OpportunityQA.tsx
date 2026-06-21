@@ -30,6 +30,7 @@ export default function OpportunityQA({ opportunityId, currentUser, onSignInToAs
   const [isPublic, setIsPublic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const isStudent = currentUser?.role === 'student';
 
@@ -56,6 +57,7 @@ export default function OpportunityQA({ opportunityId, currentUser, onSignInToAs
     if (trimmed.length > MAX_QUESTION) { setError(`Questions must be under ${MAX_QUESTION} characters.`); return; }
     setSubmitting(true);
     setError('');
+    setSuccess('');
     try {
       const res = await apiFetch(`/api/opportunities/${encodeURIComponent(opportunityId)}/questions`, {
         method: 'POST',
@@ -67,6 +69,7 @@ export default function OpportunityQA({ opportunityId, currentUser, onSignInToAs
       setQuestions(prev => [json.question, ...prev]);
       setText('');
       setIsPublic(false);
+      setSuccess('Your question was sent to the professor.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send question');
     } finally {
@@ -101,7 +104,7 @@ export default function OpportunityQA({ opportunityId, currentUser, onSignInToAs
           <div className="rounded-xl border border-zinc-200 p-4">
             <textarea
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={e => { setText(e.target.value); if (success) setSuccess(''); }}
               rows={3}
               maxLength={MAX_QUESTION}
               placeholder="Ask a question before applying…"
@@ -130,6 +133,7 @@ export default function OpportunityQA({ opportunityId, currentUser, onSignInToAs
               </div>
             </div>
             {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+            {success && <p className="text-xs text-emerald-700 mt-2 flex items-center gap-1.5"><CheckCircle2 size={12} /> {success}</p>}
             <p className="text-[11px] text-zinc-400 mt-2 flex items-center gap-1.5">
               {isPublic
                 ? <><Eye size={12} /> This question will be shown anonymously if answered.</>
