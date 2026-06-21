@@ -39,6 +39,17 @@ function mapReviewApplication(row) {
     submittedAt: row.created_at || null,
     cvFile: fileMeta(row.id, 'cv', row.cv_file_key, row.cv_file, row.cv_file_name),
     transcriptFile: fileMeta(row.id, 'transcript', row.transcript_file_key, row.transcript_file, row.transcript_file_name),
+    interview: row.interview_id ? {
+      id: String(row.interview_id),
+      status: row.interview_status || 'invited',
+      slotId: row.interview_slot_id != null ? String(row.interview_slot_id) : null,
+      scheduledAt: row.interview_scheduled_at || null,
+      startTime: row.interview_start || null,
+      endTime: row.interview_end || null,
+      location: row.interview_location || null,
+      meetingLink: row.interview_meeting_link || null,
+      feedback: row.interview_feedback || '',
+    } : { status: 'none' },
   };
 }
 
@@ -68,15 +79,52 @@ function buildQuery(professorId, query) {
            u.name AS student_user_name, u.email AS student_email,
            p.linkedin_url AS student_linkedin,
            p.research_interests AS student_interests,
-           p.skills AS student_skills
+           p.skills AS student_skills,
+           iv.id AS interview_id, iv.status AS interview_status, iv.slot_id AS interview_slot_id,
+           iv.scheduled_at AS interview_scheduled_at, iv.professor_feedback AS interview_feedback,
+           s.start_time AS interview_start, s.end_time AS interview_end,
+           s.location AS interview_location, s.meeting_link AS interview_meeting_link
     FROM applications a
     JOIN opportunities o ON CAST(o.id AS TEXT) = CAST(a.opportunity_id AS TEXT)
     JOIN users u ON CAST(u.id AS TEXT) = CAST(a.student_id AS TEXT)
     LEFT JOIN user_profiles p ON p.user_id = CAST(a.student_id AS TEXT)
+    LEFT JOIN interviews iv ON CAST(iv.application_id AS TEXT) = CAST(a.id AS TEXT)
+    LEFT JOIN interview_slots s ON CAST(s.id AS TEXT) = CAST(iv.slot_id AS TEXT)
     WHERE ${clauses.join(' AND ')}
     ORDER BY a.created_at DESC`;
   return { sql, params };
 }
+
+// GET applications grouped by opportunity, each with stats.
+router.get('/professor/applications/grouped', requireAuth, requireApprovedProfessor, asyncHandler(async (req, res) => {
+  const owned = await all(
+    "SELECT id, title FROM opportunities WHERE CAST(author_id AS TEXT) = CAST(? AS TEXT) ORDER BY created_at DESC",
+    [String(req.user.id)]
+  );
+  const { sql, params } = buildQuery(req.user.id, {});
+  const rows = await all(sql, params);
+
+  const groups = new Map();
+  for (const opp of owned) {
+    groups.set(String(opp.id), {
+      id: String(opp.id),
+      title: opp.title,
+      applications: [],
+      stats: { total: 0, new: 0, under_review: 0, shortlisted: 0, accepted: 0, rejected: 0, interviews_scheduled: 0 },
+    });
+  }
+  for (const row of rows) {
+    const app = mapReviewApplication(row);
+    const group = groups.get(String(app.opportunityId));
+    if (!group) continue;
+    group.applications.push(app);
+    group.stats.total += 1;
+    if (group.stats[app.status] !== undefined) group.stats[app.status] += 1;
+    if (app.interview && app.interview.status === 'scheduled') group.stats.interviews_scheduled += 1;
+  }
+
+  res.json({ opportunities: Array.from(groups.values()) });
+}));
 
 // GET applications for the current professor's opportunities (with filters).
 router.get('/professor/applications', requireAuth, requireApprovedProfessor, asyncHandler(async (req, res) => {

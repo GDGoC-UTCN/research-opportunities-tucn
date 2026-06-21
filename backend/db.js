@@ -115,11 +115,75 @@ function initDb() {
       answered_at TEXT,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`);
+    // Interview availability slots defined by a professor for an opportunity.
+    db.run(`CREATE TABLE IF NOT EXISTS interview_slots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      opportunity_id TEXT NOT NULL,
+      professor_id TEXT NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      timezone TEXT DEFAULT 'Europe/Bucharest',
+      location TEXT,
+      meeting_link TEXT,
+      capacity INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT
+    )`);
+    // Interview records linking an application to a slot, with its own lifecycle.
+    db.run(`CREATE TABLE IF NOT EXISTS interviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      application_id TEXT NOT NULL,
+      opportunity_id TEXT NOT NULL,
+      student_id TEXT NOT NULL,
+      professor_id TEXT NOT NULL,
+      slot_id INTEGER,
+      status TEXT DEFAULT 'invited',
+      scheduled_at TEXT,
+      completed_at TEXT,
+      cancelled_at TEXT,
+      professor_feedback TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT
+    )`);
     ensureApplicationFileColumns();
     ensureUserProfileColumns();
     ensureOpportunityColumns();
     ensureOpportunityQuestionColumns();
     ensureNotificationColumns();
+    ensureColumns('interview_slots', [
+      ['timezone', "TEXT DEFAULT 'Europe/Bucharest'"],
+      ['location', 'TEXT'],
+      ['meeting_link', 'TEXT'],
+      ['capacity', 'INTEGER DEFAULT 1'],
+      ['updated_at', 'TEXT'],
+    ]);
+    ensureColumns('interviews', [
+      ['slot_id', 'INTEGER'],
+      ['status', "TEXT DEFAULT 'invited'"],
+      ['scheduled_at', 'TEXT'],
+      ['completed_at', 'TEXT'],
+      ['cancelled_at', 'TEXT'],
+      ['professor_feedback', 'TEXT'],
+      ['updated_at', 'TEXT'],
+    ]);
+  });
+}
+
+// Generic additive, idempotent column repair for an existing table.
+function ensureColumns(table, columns) {
+  db.all(`PRAGMA table_info(${table})`, [], (err, rows) => {
+    if (err) {
+      console.error(`Failed to inspect ${table} table`, err);
+      return;
+    }
+    const existing = new Set(rows.map(row => row.name));
+    for (const [name, type] of columns) {
+      if (!existing.has(name)) {
+        db.run(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`, alterErr => {
+          if (alterErr) console.error(`Failed to add ${table}.${name}`, alterErr);
+        });
+      }
+    }
   });
 }
 

@@ -1,8 +1,94 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Bookmark, BookOpen, CheckCircle2, Clock, Eye, FileText, Star, Trash2, XCircle } from 'lucide-react';
-import { Application, MyOpportunities, MyOpportunityItem, Opportunity, User } from '../../types';
-import { downloadApplicationFile } from '../../api';
+import { Bookmark, BookOpen, CalendarClock, CalendarPlus, CheckCircle2, Clock, Download, ExternalLink, Eye, FileText, Star, Trash2, XCircle } from 'lucide-react';
+import { Application, InterviewSlot, MyOpportunities, MyOpportunityItem, Opportunity, StudentInterview, User } from '../../types';
+import { downloadApplicationFile, apiFetch, downloadProtectedFile } from '../../api';
+import { interviewBadge, interviewLabel } from '../../lib/applicationStatus';
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+// Student interview panel: schedule when invited, show details when scheduled.
+function InterviewPanel({ interview, onChanged }: { interview: StudentInterview; onChanged: () => void }) {
+  const [slots, setSlots] = useState<InterviewSlot[] | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const loadSlots = async () => {
+    setPicking(true);
+    try {
+      const res = await apiFetch(`/api/opportunities/${encodeURIComponent(interview.opportunityId)}/interview-slots`);
+      if (res.ok) { const json = await res.json(); setSlots(Array.isArray(json.slots) ? json.slots : []); }
+    } catch { setSlots([]); }
+  };
+
+  const choose = async (slotId: string) => {
+    setBusy(true);
+    try {
+      const res = await apiFetch(`/api/student/interviews/${encodeURIComponent(interview.id)}/schedule`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slotId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Failed to schedule');
+      setPicking(false);
+      onChanged();
+    } catch (err) { alert(err instanceof Error ? err.message : 'Failed to schedule'); }
+    finally { setBusy(false); }
+  };
+
+  if (interview.status === 'completed' || interview.status === 'cancelled') {
+    return (
+      <div className="border-t border-zinc-100 px-6 py-3 flex items-center gap-2">
+        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${interviewBadge(interview.status)}`}>{interviewLabel(interview.status)}</span>
+      </div>
+    );
+  }
+
+  if (interview.status === 'scheduled') {
+    return (
+      <div className="border-t border-zinc-100 px-6 py-4 bg-zinc-50">
+        <div className="flex items-center gap-2 mb-1.5">
+          <CalendarClock size={14} className="text-zinc-500" />
+          <span className="text-xs font-semibold text-zinc-800">Interview scheduled</span>
+        </div>
+        <p className="text-sm text-zinc-700">{formatDateTime(interview.startTime)}</p>
+        {interview.location && <p className="text-xs text-zinc-500 mt-0.5">{interview.location}</p>}
+        <div className="flex flex-wrap items-center gap-3 mt-2">
+          {interview.meetingLink && <a href={interview.meetingLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 hover:underline"><ExternalLink size={12} /> Join meeting</a>}
+          <button onClick={() => downloadProtectedFile(`/api/interviews/${encodeURIComponent(interview.id)}/calendar.ics`, 'interview.ics').catch(e => alert(e.message))} className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 hover:underline"><Download size={12} /> Add to calendar</button>
+        </div>
+      </div>
+    );
+  }
+
+  // invited
+  return (
+    <div className="border-t border-zinc-100 px-6 py-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700"><CalendarPlus size={14} /> You're invited to an interview</span>
+        {!picking && <button onClick={loadSlots} className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors">Schedule interview</button>}
+      </div>
+      {picking && (
+        <div className="mt-3 space-y-2">
+          {slots === null ? <p className="text-xs text-zinc-400">Loading slots…</p>
+            : slots.length === 0 ? <p className="text-xs text-zinc-400">No available slots yet. Check back soon.</p>
+            : slots.map(s => (
+              <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm text-zinc-800">{formatDateTime(s.startTime)}</p>
+                  {(s.location || s.meetingLink) && <p className="text-xs text-zinc-500 truncate">{s.location || 'Online meeting'}</p>}
+                </div>
+                <button onClick={() => choose(s.id)} disabled={busy} className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-xs font-semibold hover:bg-black disabled:opacity-50 flex-shrink-0">Choose</button>
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   currentUser: User;
@@ -116,9 +202,22 @@ export default function StudentApplications({
   onRemoveSavedOpportunity,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>('saved');
+  const [interviews, setInterviews] = useState<StudentInterview[]>([]);
   const activeItems = myOpportunities[activeTab] || [];
   const studentApps = applications.filter(a => a.studentId === currentUser.id);
   const total = TABS.reduce((sum, tab) => sum + (myOpportunities[tab.key]?.length || 0), 0);
+
+  const loadInterviews = async () => {
+    try {
+      const res = await apiFetch('/api/student/interviews');
+      if (res.ok) {
+        const json = await res.json();
+        setInterviews(Array.isArray(json.interviews) ? json.interviews : []);
+      }
+    } catch { /* ignore */ }
+  };
+  useEffect(() => { loadInterviews(); }, []);
+  const interviewForOpp = (oppId: string) => interviews.find(i => i.opportunityId === oppId);
 
   const renderSavedCard = (item: MyOpportunityItem) => (
     <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -216,6 +315,11 @@ export default function StudentApplications({
             <p className="text-xs text-gray-400 italic">Submitted — waiting for the professor to review.</p>
           </div>
         ) : null}
+
+        {(() => {
+          const iv = interviewForOpp(item.opportunity.id);
+          return iv && iv.status !== 'none' ? <InterviewPanel interview={iv} onChanged={loadInterviews} /> : null;
+        })()}
       </div>
     );
   };

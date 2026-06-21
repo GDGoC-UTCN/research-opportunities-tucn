@@ -887,6 +887,80 @@ async function main() {
     assert(csvText.includes('Opportunity,Student Name') && csvText.includes('Strong candidate'), 'CSV includes expected columns and notes');
     assert(!csvText.includes('/api/applications') && !csvText.includes('file_key') && !csvText.includes('downloadUrl'), 'CSV export does not expose file URLs');
 
+    // ── Grouped review + interview scheduling ─────────────────────────
+    result = await request('GET', '/api/professor/applications/grouped', professor);
+    assert(result.response.status === 200 && result.json.opportunities.some(o => o.id === String(opportunityId)), 'professor gets applications grouped by own opportunities');
+    const grouped = result.json.opportunities.find(o => o.id === String(opportunityId));
+    assert(grouped && grouped.stats && grouped.applications.some(a => a.id === String(applicationId)), 'grouped opportunity includes its applications and stats');
+
+    result = await request('GET', '/api/professor/applications/grouped', otherProfessor);
+    assert(result.response.status === 200 && !result.json.opportunities.some(o => o.id === String(opportunityId)), 'professor cannot see another professor grouped applications');
+
+    const slotStart = new Date(Date.now() + 2 * 86400000).toISOString();
+    const slotEnd = new Date(Date.now() + 2 * 86400000 + 60 * 60000).toISOString();
+    result = await request('POST', `/api/professor/opportunities/${opportunityId}/interview-slots`, professor, { startTime: slotStart, endTime: slotEnd, capacity: 1, location: 'Room 101' });
+    assert(result.response.status === 201, 'professor creates an availability slot');
+    const slotId = result.json.slot.id;
+
+    result = await request('POST', `/api/professor/opportunities/${opportunityId}/interview-slots`, otherProfessor, { startTime: slotStart, endTime: slotEnd });
+    assert(result.response.status === 404, 'professor cannot create a slot for another professor opportunity');
+
+    // applicationId is shortlisted from the earlier review tests.
+    result = await request('POST', `/api/professor/applications/${applicationId}/interview-invite`, professor, {});
+    assert(result.response.status === 201 && result.json.interview.status === 'invited', 'professor invites a shortlisted applicant to interview');
+    const interviewId = result.json.interview.id;
+
+    result = await request('GET', '/api/student/interviews', student);
+    assert(result.response.status === 200 && result.json.interviews.some(i => i.id === String(interviewId) && i.status === 'invited'), 'student sees the interview invite');
+
+    result = await request('GET', `/api/opportunities/${opportunityId}/interview-slots`, student);
+    assert(result.response.status === 200 && result.json.slots.some(s => s.id === String(slotId)), 'invited student sees available slots');
+
+    result = await request('GET', `/api/opportunities/${opportunityId}/interview-slots`, otherStudent);
+    assert(result.response.status === 403, 'student without an invite cannot view interview slots');
+
+    result = await request('POST', `/api/student/interviews/${interviewId}/schedule`, student, { slotId });
+    assert(result.response.status === 200 && result.json.interview.status === 'scheduled', 'student schedules an interview slot');
+
+    const ics = await download(`/api/interviews/${interviewId}/calendar.ics`, student);
+    assert(ics.response.status === 200 && (ics.response.headers.get('content-type') || '').includes('text/calendar'), 'calendar ICS endpoint works');
+    const icsText = ics.buffer.toString('utf8');
+    assert(icsText.includes('BEGIN:VCALENDAR') && icsText.includes('VEVENT'), 'ICS contains a calendar event');
+
+    // Double-booking prevention (capacity 1): a second invited student cannot take the same slot.
+    result = await multipartRequest('/api/applications', otherStudent, { opportunityId, message: 'Please consider me too', answers: '[]' });
+    assert(result.response.status === 201, 'second student applies to the opportunity');
+    const otherApplicationId = result.json.id;
+    await request('PATCH', `/api/professor/applications/${otherApplicationId}/review`, professor, { status: 'shortlisted' });
+    result = await request('POST', `/api/professor/applications/${otherApplicationId}/interview-invite`, professor, {});
+    const otherInterviewId = result.json.interview.id;
+    result = await request('GET', `/api/opportunities/${opportunityId}/interview-slots`, otherStudent);
+    assert(!result.json.slots.some(s => s.id === String(slotId)), 'a fully booked slot is hidden from other students');
+    result = await request('POST', `/api/student/interviews/${otherInterviewId}/schedule`, otherStudent, { slotId });
+    assert(result.response.status === 409, 'double-booking is prevented when capacity is 1');
+
+    // Professor sees the scheduled interview and can complete it with private feedback.
+    result = await request('GET', '/api/professor/applications/grouped', professor);
+    const groupedAfter = result.json.opportunities.find(o => o.id === String(opportunityId));
+    assert(groupedAfter.stats.interviews_scheduled >= 1, 'professor sees scheduled interview count');
+
+    result = await request('PATCH', `/api/professor/interviews/${interviewId}`, professor, { status: 'completed', professorFeedback: 'Excellent interview performance' });
+    assert(result.response.status === 200 && result.json.interview.status === 'completed', 'professor marks interview completed with feedback');
+
+    result = await request('PATCH', `/api/professor/interviews/${interviewId}`, otherProfessor, { status: 'cancelled' });
+    assert(result.response.status === 403, 'non-owning professor cannot modify the interview');
+
+    result = await request('GET', '/api/student/interviews', student);
+    assert(!JSON.stringify(result.json).includes('Excellent interview performance'), 'student cannot see professor interview feedback');
+
+    const guestInterviews = await rawJsonRequest('GET', '/api/student/interviews');
+    assert(guestInterviews.response.status === 401, 'unauthenticated users cannot access interviews');
+
+    result = await request('GET', '/api/notifications', student);
+    assert(result.json.notifications.some(n => n.type === 'interview_invited'), 'student notified of interview invite');
+    result = await request('GET', '/api/notifications', professor);
+    assert(result.json.notifications.some(n => n.type === 'interview_scheduled'), 'professor notified when interview is scheduled');
+
     await request('DELETE', `/api/opportunities/${recTargetId}`, admin);
     await request('DELETE', '/api/admin/users/stillpending@example.com', admin);
 
