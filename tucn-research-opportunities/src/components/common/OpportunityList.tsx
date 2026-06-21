@@ -25,6 +25,7 @@ interface Props {
   applicationStatusForOpportunity: (opportunityId: string) => ApplicationStatus | undefined;
   handleToggleSave: (opp: Opportunity) => void;
   handleShareOpportunity: (opp: Opportunity) => void;
+  onOpenProfessor?: (professorId: string) => void;
 }
 
 function Stat({ value, label }: { value: number | string; label: string }) {
@@ -56,7 +57,8 @@ export default function OpportunityList({
   savedOpportunityIds,
   applicationStatusForOpportunity,
   handleToggleSave,
-  handleShareOpportunity
+  handleShareOpportunity,
+  onOpenProfessor
 }: Props) {
   const totalVisible = opportunities.filter(opp => {
     const matchesSearch =
@@ -264,6 +266,7 @@ export default function OpportunityList({
                 applicationStatus={applicationStatusForOpportunity(opp.id)}
                 onToggleSave={handleToggleSave}
                 onShare={handleShareOpportunity}
+                onOpenProfessor={onOpenProfessor}
               />
             ))}
           </div>

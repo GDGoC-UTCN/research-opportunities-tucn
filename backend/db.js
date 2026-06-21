@@ -74,6 +74,12 @@ function initDb() {
       transcript_file_name TEXT,
       transcript_file_size INTEGER,
       transcript_file_type TEXT,
+      bio TEXT,
+      website_url TEXT,
+      research_interests TEXT,
+      lab_name TEXT,
+      skills TEXT,
+      preferred_tags TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
@@ -88,8 +94,10 @@ function initDb() {
     db.run(`CREATE TABLE IF NOT EXISTS notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
+      type TEXT,
       title TEXT NOT NULL,
       message TEXT,
+      link_url TEXT,
       read INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
@@ -111,6 +119,30 @@ function initDb() {
     ensureUserProfileColumns();
     ensureOpportunityColumns();
     ensureOpportunityQuestionColumns();
+    ensureNotificationColumns();
+  });
+}
+
+function ensureNotificationColumns() {
+  // Add type/link_url to older notification tables so the UI can categorize and
+  // deep-link notifications. Additive and idempotent.
+  const columns = [
+    ['type', 'TEXT'],
+    ['link_url', 'TEXT'],
+  ];
+  db.all('PRAGMA table_info(notifications)', [], (err, rows) => {
+    if (err) {
+      console.error('Failed to inspect notifications table', err);
+      return;
+    }
+    const existing = new Set(rows.map(row => row.name));
+    for (const [name, type] of columns) {
+      if (!existing.has(name)) {
+        db.run(`ALTER TABLE notifications ADD COLUMN ${name} ${type}`, alterErr => {
+          if (alterErr) console.error(`Failed to add notifications.${name}`, alterErr);
+        });
+      }
+    }
   });
 }
 
@@ -207,6 +239,13 @@ function ensureUserProfileColumns() {
     ['transcript_file_name', 'TEXT'],
     ['transcript_file_size', 'INTEGER'],
     ['transcript_file_type', 'TEXT'],
+    // Professor public profile + student recommendation fields (additive).
+    ['bio', 'TEXT'],
+    ['website_url', 'TEXT'],
+    ['research_interests', 'TEXT'],
+    ['lab_name', 'TEXT'],
+    ['skills', 'TEXT'],
+    ['preferred_tags', 'TEXT'],
     ['created_at', 'TEXT'],
     ['updated_at', 'TEXT'],
   ];

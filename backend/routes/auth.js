@@ -1,9 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
-const { run, get } = require('../db');
+const { run, get, all } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
 const { cleanUser, validateSignup, validateLogin, asString } = require('../utils/validation');
+const { createNotification } = require('../utils/notify');
 const { COOKIE_NAME, cookieOptions, clearCookieOptions, signToken, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -39,6 +40,16 @@ router.post('/signup', authLimiter, asyncHandler(async (req, res) => {
       res.cookie(COOKIE_NAME, signToken(user), cookieOptions());
       return res.status(201).json({ user });
     }
+
+    // Notify all admins that a professor account is awaiting approval.
+    const admins = await all("SELECT id FROM users WHERE role = 'admin'").catch(() => []);
+    await Promise.all(admins.map(admin => createNotification({
+      userId: admin.id,
+      type: 'professor_pending',
+      title: 'Professor Pending Approval',
+      message: `${name} (${email}) signed up as a professor and is awaiting approval.`,
+      linkUrl: '/admin',
+    })));
 
     return res.status(201).json({ user, pendingApproval: true });
   } catch (err) {

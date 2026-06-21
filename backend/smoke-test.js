@@ -765,6 +765,89 @@ async function main() {
       'student sees the answer to their own question'
     );
 
+    // ── Professor public profiles ─────────────────────────────────────
+    result = await request('GET', '/api/me', professor);
+    const professorId = result.json.user.id;
+
+    result = await request('PATCH', '/api/profile', professor, {
+      bio: 'I research applied machine learning.',
+      websiteUrl: 'https://example.com/lab',
+      labName: 'Applied ML Lab',
+      researchInterests: ['Machine Learning', 'Computer Vision'],
+    });
+    assert(result.response.status === 200 && result.json.profile.labName === 'Applied ML Lab', 'professor can edit own public profile');
+
+    result = await request('GET', '/api/professors', guest);
+    assert(result.response.status === 200 && result.json.professors.some(p => p.id === String(professorId)), 'approved professor appears in public directory');
+
+    result = await request('GET', `/api/professors/${professorId}`, guest);
+    assert(
+      result.response.status === 200 &&
+        result.json.professor.bio === 'I research applied machine learning.' &&
+        result.json.professor.researchInterests.includes('Machine Learning') &&
+        Array.isArray(result.json.professor.opportunities),
+      'approved professor public profile shows details and opportunities'
+    );
+
+    const stillPending = new CookieJar();
+    result = await request('POST', '/api/signup', stillPending, {
+      name: 'Still Pending', email: 'stillpending@example.com', password: 'profpass123', role: 'professor', department: 'CS',
+    });
+    const stillPendingId = result.json.user.id;
+    result = await request('GET', `/api/professors/${stillPendingId}`, guest);
+    assert(result.response.status === 404, 'pending professor has no public profile');
+    result = await request('GET', '/api/professors', guest);
+    assert(!result.json.professors.some(p => p.id === String(stillPendingId)), 'pending professor is not listed publicly');
+
+    // ── Recommendations ───────────────────────────────────────────────
+    result = await request('POST', '/api/opportunities', professor, {
+      title: 'Quantum Recommendation Target', description: 'Quantum research work', abstract: 'Quantum abstract',
+      duration: '3 months', stipend: 'None', tags: ['QUANTUMX'], applicationFields: [],
+    });
+    assert(result.response.status === 201, 'professor creates a recommendation-target opportunity');
+    const recTargetId = result.json.id;
+
+    result = await request('PATCH', '/api/profile', student, {
+      researchInterests: ['Quantum Computing'], skills: ['Python'], preferredTags: ['QUANTUMX'],
+    });
+    assert(result.response.status === 200 && result.json.profile.preferredTags.includes('QUANTUMX'), 'student can update interests/skills');
+
+    result = await request('GET', '/api/recommendations/opportunities', student);
+    assert(result.response.status === 200 && Array.isArray(result.json.recommendations), 'recommendations endpoint returns a list');
+    const recTarget = result.json.recommendations.find(r => r.opportunity.id === String(recTargetId));
+    assert(recTarget && recTarget.reasons.length > 0, 'recommendations include a relevant opportunity with reason labels');
+    assert(!result.json.recommendations.some(r => r.opportunity.id === String(opportunityId)), 'recommendations exclude already applied opportunities');
+
+    result = await request('GET', '/api/recommendations/opportunities', guest);
+    assert(result.response.status === 401, 'recommendations require authentication');
+    result = await request('GET', '/api/recommendations/opportunities', professor);
+    assert(result.response.status === 403, 'recommendations are student-only');
+
+    // ── Notifications ─────────────────────────────────────────────────
+    result = await request('GET', '/api/notifications', professor);
+    assert(result.response.status === 200 && result.json.notifications.some(n => n.type === 'question'), 'professor notified of a new question');
+    assert(result.json.notifications.some(n => n.type === 'application'), 'professor notified of a new application');
+    const profNotifId = result.json.notifications[0].id;
+
+    result = await request('GET', '/api/notifications', student);
+    assert(result.response.status === 200 && result.json.notifications.some(n => n.type === 'answer'), 'student notified of an answer');
+    assert(result.json.notifications.some(n => n.type === 'application_accepted'), 'student notified of acceptance');
+    const studentNotifId = result.json.notifications[0].id;
+
+    result = await request('PATCH', `/api/notifications/${profNotifId}/read`, student);
+    assert(result.response.status === 403, 'student cannot mark another user notification as read');
+
+    result = await request('PATCH', `/api/notifications/${studentNotifId}/read`, student);
+    assert(result.response.status === 200, 'student can mark own notification read');
+
+    result = await request('PATCH', '/api/notifications/read-all', student);
+    assert(result.response.status === 200, 'student can mark all notifications read');
+    result = await request('GET', '/api/notifications', student);
+    assert(result.json.unreadCount === 0, 'unread count is zero after mark all read');
+
+    await request('DELETE', `/api/opportunities/${recTargetId}`, admin);
+    await request('DELETE', '/api/admin/users/stillpending@example.com', admin);
+
     await request('DELETE', `/api/opportunities/${opportunityId}`, admin);
     await request('DELETE', `/api/opportunities/${requiredCvOpportunityId}`, admin);
     await request('DELETE', `/api/opportunities/${uploadedCvOpportunityId}`, admin);

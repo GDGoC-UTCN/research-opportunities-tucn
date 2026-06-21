@@ -3,6 +3,7 @@ const { all, run, get } = require('../db');
 const { asyncHandler, httpError } = require('../utils/errors');
 const { requireAuth, requireApprovedProfessor, optionalAuth } = require('../middleware/auth');
 const { asString, validateQuestion, validateQuestionAnswer } = require('../utils/validation');
+const { createNotification } = require('../utils/notify');
 
 const router = express.Router();
 
@@ -80,10 +81,13 @@ router.post('/opportunities/:id/questions', requireAuth, asyncHandler(async (req
   );
 
   // Best-effort notification to the owning professor (never blocks the request).
-  await run(
-    'INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)',
-    [String(opportunity.author_id), 'New Question', `${req.user.name} asked a question about "${opportunity.title}".`]
-  ).catch(err => console.error('Failed to create question notification', err));
+  await createNotification({
+    userId: opportunity.author_id,
+    type: 'question',
+    title: 'New Question',
+    message: `${req.user.name} asked a question about "${opportunity.title}".`,
+    linkUrl: `/opportunities/${req.params.id}`,
+  });
 
   const row = await get('SELECT * FROM opportunity_questions WHERE id = ?', [result.lastID]);
   res.status(201).json({ question: mapQuestion(row, { reveal: true, isOwn: true }) });
@@ -136,10 +140,13 @@ router.patch('/opportunity-questions/:questionId/answer', requireAuth, requireAp
     [asString(req.body.answerText), now, now, req.params.questionId]
   );
 
-  await run(
-    'INSERT INTO notifications (user_id, title, message) VALUES (?, ?, ?)',
-    [String(question.student_id), 'Question Answered', `A professor replied to your question about "${question.opportunity_title}".`]
-  ).catch(err => console.error('Failed to create answer notification', err));
+  await createNotification({
+    userId: question.student_id,
+    type: 'answer',
+    title: 'Question Answered',
+    message: `A professor replied to your question about "${question.opportunity_title}".`,
+    linkUrl: `/opportunities/${question.opportunity_id}`,
+  });
 
   const row = await get(
     `SELECT q.*, o.title AS opportunity_title

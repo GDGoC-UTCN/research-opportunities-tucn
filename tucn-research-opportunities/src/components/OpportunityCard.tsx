@@ -10,6 +10,7 @@ interface OpportunityCardProps {
   applicationStatus?: ApplicationStatus;
   onToggleSave: (opp: Opportunity) => void;
   onShare: (opp: Opportunity) => void;
+  onOpenProfessor?: (professorId: string) => void;
 }
 
 const STATUS_LABELS: Record<ApplicationStatus, string> = {
@@ -24,7 +25,7 @@ const STATUS_STYLES: Record<ApplicationStatus, string> = {
   rejected: 'bg-red-50 text-red-600 border border-red-200',
 };
 
-const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick, saved, applicationStatus, onToggleSave, onShare }) => {
+const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick, saved, applicationStatus, onToggleSave, onShare, onOpenProfessor }) => {
   return (
     <motion.article
       layout
@@ -119,7 +120,10 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick,
         </div>
 
         {/* Author */}
-        <div className="flex items-center gap-2.5 pt-3.5 border-t border-zinc-100 flex-shrink-0">
+        <div
+          className={`flex items-center gap-2.5 pt-3.5 border-t border-zinc-100 flex-shrink-0 ${onOpenProfessor ? 'cursor-pointer group/author' : ''}`}
+          onClick={onOpenProfessor ? (event) => { event.stopPropagation(); onOpenProfessor(opportunity.author.id); } : undefined}
+        >
           <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-zinc-200 grayscale">
             <img
               src={opportunity.author.avatar}
@@ -129,7 +133,7 @@ const OpportunityCard: React.FC<OpportunityCardProps> = ({ opportunity, onClick,
             />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-semibold text-zinc-700 truncate leading-tight">{opportunity.author.name}</span>
+            <span className={`text-xs font-semibold text-zinc-700 truncate leading-tight ${onOpenProfessor ? 'group-hover/author:text-zinc-900 group-hover/author:underline underline-offset-2 decoration-zinc-300' : ''}`}>{opportunity.author.name}</span>
             <span className="text-[10px] text-zinc-400 truncate uppercase tracking-wide leading-tight mt-0.5">{opportunity.author.department}</span>
           </div>
         </div>

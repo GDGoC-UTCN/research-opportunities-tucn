@@ -15,6 +15,7 @@ interface Props {
   handleToggleSave: (opportunity: Opportunity) => void;
   handleShareOpportunity: (opportunity: Opportunity) => void;
   onSignInToAsk: () => void;
+  onOpenProfessor: (professorId: string) => void;
 }
 
 const STATUS_STYLES: Record<ApplicationStatus, string> = {
@@ -40,7 +41,8 @@ export default function OpportunityDetail({
   applicationStatus,
   handleToggleSave,
   handleShareOpportunity,
-  onSignInToAsk
+  onSignInToAsk,
+  onOpenProfessor
 }: Props) {
   const hasApplied = applications.some(
     a => a.opportunityId === selectedOpportunity.id && a.studentId === currentUser?.id
@@ -94,7 +96,11 @@ export default function OpportunityDetail({
               <h1 className="font-display text-2xl md:text-[2rem] leading-snug max-w-3xl">
                 {selectedOpportunity.title}
               </h1>
-              <div className="mt-5 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onOpenProfessor(selectedOpportunity.author.id)}
+                className="mt-5 flex items-center gap-3 text-left group/author"
+              >
                 <img
                   src={selectedOpportunity.author.avatar}
                   alt={selectedOpportunity.author.name}
@@ -102,10 +108,10 @@ export default function OpportunityDetail({
                   referrerPolicy="no-referrer"
                 />
                 <div>
-                  <div className="font-semibold text-white text-sm">{selectedOpportunity.author.name}</div>
+                  <div className="font-semibold text-white text-sm group-hover/author:underline underline-offset-2 decoration-white/40">{selectedOpportunity.author.name}</div>
                   <div className="text-white/45 text-xs uppercase tracking-wide">{selectedOpportunity.author.department}</div>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 

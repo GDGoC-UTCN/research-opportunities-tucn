@@ -66,6 +66,13 @@ function mapProfile(row, user) {
     avatar,
     cvFile,
     transcriptFile,
+    // Professor public-profile fields + student recommendation fields.
+    bio: row?.bio || '',
+    websiteUrl: row?.website_url || '',
+    labName: row?.lab_name || '',
+    researchInterests: parseJson(row?.research_interests, []),
+    skills: parseJson(row?.skills, []),
+    preferredTags: parseJson(row?.preferred_tags, []),
   };
 }
 
@@ -139,6 +146,39 @@ function validateLinkedInUrl(value) {
   const host = parsed.hostname.toLowerCase();
   if (host !== 'linkedin.com' && !host.endsWith('.linkedin.com')) return 'LinkedIn URL must be a LinkedIn URL';
   return null;
+}
+
+function validateWebsiteUrl(value) {
+  if (!value) return null;
+  if (value.length > 300) return 'Website URL must be under 300 characters';
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return 'Website URL must be a valid URL';
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return 'Website URL must use http or https';
+  return null;
+}
+
+// Accepts an array (or comma-separated string) of short tag-like strings.
+function sanitizeStringArray(value) {
+  let list = value;
+  if (typeof value === 'string') list = value.split(',');
+  if (!Array.isArray(list)) return { error: 'Expected a list of values' };
+  const cleaned = [];
+  const seen = new Set();
+  for (const raw of list) {
+    const item = asString(raw);
+    if (!item) continue;
+    if (item.length > 60) return { error: 'Each entry must be under 60 characters' };
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cleaned.push(item);
+    if (cleaned.length > 30) return { error: 'At most 30 entries are allowed' };
+  }
+  return { value: cleaned };
 }
 
 function validatePdfUpload(file, label) {
@@ -355,7 +395,11 @@ router.delete('/profile/saved-opportunities/:opportunityId', requireAuth, asyncH
 }));
 
 router.patch('/profile', requireAuth, asyncHandler(async (req, res) => {
-  const allowed = new Set(['name', 'department', 'linkedinUrl']);
+  const allowed = new Set([
+    'name', 'department', 'linkedinUrl',
+    'bio', 'websiteUrl', 'labName', 'researchInterests', // professor public profile
+    'skills', 'preferredTags', // student recommendation inputs
+  ]);
   for (const key of Object.keys(req.body || {})) {
     if (!allowed.has(key)) throw httpError(400, `Unexpected field: ${key}`);
   }
@@ -363,10 +407,28 @@ router.patch('/profile', requireAuth, asyncHandler(async (req, res) => {
   const name = asString(req.body.name);
   const department = asString(req.body.department);
   const linkedinUrl = asString(req.body.linkedinUrl);
+  const bio = asString(req.body.bio);
+  const websiteUrl = asString(req.body.websiteUrl);
+  const labName = asString(req.body.labName);
+
   if (req.body.name !== undefined && (!name || name.length > 120)) throw httpError(400, 'Name is required and must be under 120 characters');
   if (req.body.department !== undefined && department.length > 160) throw httpError(400, 'Department must be under 160 characters');
   const linkedinError = validateLinkedInUrl(linkedinUrl);
   if (linkedinError) throw httpError(400, linkedinError);
+  if (req.body.bio !== undefined && bio.length > 2000) throw httpError(400, 'Bio must be under 2000 characters');
+  if (req.body.labName !== undefined && labName.length > 160) throw httpError(400, 'Lab/group name must be under 160 characters');
+  const websiteError = validateWebsiteUrl(websiteUrl);
+  if (websiteError) throw httpError(400, websiteError);
+
+  // Tag-like array fields.
+  const arrayFields = { researchInterests: 'research_interests', skills: 'skills', preferredTags: 'preferred_tags' };
+  const arrayUpdates = {};
+  for (const [bodyKey, column] of Object.entries(arrayFields)) {
+    if (req.body[bodyKey] === undefined) continue;
+    const result = sanitizeStringArray(req.body[bodyKey]);
+    if (result.error) throw httpError(400, `${bodyKey}: ${result.error}`);
+    arrayUpdates[column] = JSON.stringify(result.value);
+  }
 
   if (req.body.name !== undefined || req.body.department !== undefined) {
     await run(
@@ -380,10 +442,21 @@ router.patch('/profile', requireAuth, asyncHandler(async (req, res) => {
   }
 
   await ensureProfile(req.user.id);
-  if (req.body.linkedinUrl !== undefined) {
+
+  // Build a single dynamic UPDATE for the provided profile columns.
+  const sets = [];
+  const params = [];
+  if (req.body.linkedinUrl !== undefined) { sets.push('linkedin_url = ?'); params.push(linkedinUrl || null); }
+  if (req.body.bio !== undefined) { sets.push('bio = ?'); params.push(bio || null); }
+  if (req.body.websiteUrl !== undefined) { sets.push('website_url = ?'); params.push(websiteUrl || null); }
+  if (req.body.labName !== undefined) { sets.push('lab_name = ?'); params.push(labName || null); }
+  for (const [column, json] of Object.entries(arrayUpdates)) { sets.push(`${column} = ?`); params.push(json); }
+
+  if (sets.length > 0) {
+    params.push(String(req.user.id));
     await run(
-      'UPDATE user_profiles SET linkedin_url = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?',
-      [linkedinUrl || null, String(req.user.id)]
+      `UPDATE user_profiles SET ${sets.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
+      params
     );
   }
 

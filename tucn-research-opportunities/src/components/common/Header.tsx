@@ -11,9 +11,10 @@ interface Props {
   showUserMenu: boolean;
   setShowUserMenu: (show: boolean) => void;
   handleLogout: () => void;
+  onNavigate: (path: string) => void;
 }
 
-export default function Header({ currentUser, setView, showUserMenu, setShowUserMenu, handleLogout }: Props) {
+export default function Header({ currentUser, setView, showUserMenu, setShowUserMenu, handleLogout, onNavigate }: Props) {
   const [notifications, setNotifications] = React.useState<any[]>([]);
   const [showNotifications, setShowNotifications] = React.useState(false);
   const homeView = currentUser?.role === 'professor' ? 'dashboard' : currentUser?.role === 'admin' ? 'dashboard' : 'list';
@@ -38,6 +39,12 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
   const markAllAsRead = async () => {
     await apiFetch('/api/notifications/read-all', { method: 'PATCH' });
     setNotifications(prev => prev.map(n => ({ ...n, read: 1 })));
+  };
+
+  const openNotification = (n: any) => {
+    if (!n.read) markAsRead(n.id);
+    setShowNotifications(false);
+    if (n.link_url) onNavigate(n.link_url);
   };
   const navigate = (view: 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile') => {
     setView(view);
@@ -75,6 +82,9 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                 <button onClick={() => navigate('list')} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
                   Browse
                 </button>
+                <button onClick={() => onNavigate('/professors')} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                  Professors
+                </button>
                 <button
                   onClick={() => navigate('login')}
                   className="text-sm bg-white text-zinc-900 hover:bg-zinc-200 px-3.5 py-1.5 rounded-lg transition-colors font-semibold flex items-center gap-1.5 ml-1"
@@ -88,6 +98,9 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
               <nav className="hidden md:flex items-center gap-1 mr-2">
                 <button onClick={() => navigate('list')} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
                   Browse
+                </button>
+                <button onClick={() => onNavigate('/professors')} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                  Professors
                 </button>
                 <button onClick={() => { setView('applications'); window.history.pushState({}, '', '/applications'); }} className="text-sm text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors font-medium">
                   My Opportunities
@@ -124,7 +137,9 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                 >
                   <Bell size={20} />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-utcn-navy"></span>
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[1.1rem] h-[1.1rem] px-1 bg-utcn-red rounded-full border-2 border-utcn-navy text-[10px] font-bold leading-none flex items-center justify-center tabular-nums">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
                   )}
                 </button>
 
@@ -151,10 +166,10 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                             No notifications yet
                           </div>
                         ) : (
-                          notifications.map(n => (
+                          notifications.slice(0, 8).map(n => (
                             <button
                               key={n.id}
-                              onClick={() => { if (!n.read) markAsRead(n.id); }}
+                              onClick={() => openNotification(n)}
                               className={`w-full text-left p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-zinc-50' : ''}`}
                             >
                               <div className="flex items-start justify-between gap-3">
@@ -166,12 +181,18 @@ export default function Header({ currentUser, setView, showUserMenu, setShowUser
                                     {n.message}
                                   </p>
                                 </div>
-                                {!n.read && <div className="w-2 h-2 rounded-full bg-utcn-primary mt-1 flex-shrink-0" />}
+                                {!n.read && <div className="w-2 h-2 rounded-full bg-utcn-red mt-1 flex-shrink-0" />}
                               </div>
                             </button>
                           ))
                         )}
                       </div>
+                      <button
+                        onClick={() => { setShowNotifications(false); onNavigate('/notifications'); }}
+                        className="w-full text-center px-4 py-3 text-xs font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-gray-50 border-t border-gray-100 transition-colors"
+                      >
+                        View all notifications
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>

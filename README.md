@@ -1,6 +1,6 @@
 # AIRi@UTCN Research Opportunities
 
-React/Vite/TypeScript frontend plus an Express + SQLite backend for AIRi@UTCN research opportunities. Anyone can browse public opportunities, authenticated students apply to professor-posted projects and ask questions before applying, professors manage their own opportunities and applicants and answer questions, and admins approve professor accounts and manage platform data. The app ships with informational pages (How It Works, For Professors, FAQs) and a monochrome, editorial AIRi@UTCN interface.
+React/Vite/TypeScript frontend plus an Express + SQLite backend for AIRi@UTCN research opportunities. Anyone can browse public opportunities and approved-professor profiles; authenticated students apply to professor-posted projects, ask questions before applying, and get personalized opportunity recommendations; professors manage their own opportunities and applicants, answer questions, and maintain a public research profile; and admins approve professor accounts and manage platform data. Important events generate in-app notifications. The app ships with informational pages (How It Works, For Professors, FAQs) and a monochrome, editorial AIRi@UTCN interface.
 
 This is a production-oriented application backed by a real API, server-side RBAC/CSRF, SQLite persistence, and S3-compatible object storage — not a mock or `localStorage` demo.
 
@@ -73,6 +73,43 @@ Privacy model:
 - Questions are **private by default** — visible only to the asking student, the owning professor, and admins.
 - When asking, a student may tick *"Allow this question to be shown anonymously to other students if answered."* If checked and once answered, the Q&A appears publicly on the opportunity detail page **without the student's name**.
 - Private questions are never exposed to other students or non-owning professors. Public answered questions are always anonymized for everyone except the asker, the owning professor, and admins.
+
+## Professor & Research Group Profiles
+
+Approved professors have public profile pages that make the platform feel like a research network.
+
+- **Directory** at `/professors` lists approved professors with their department, research interests, lab/group name, and active-opportunity count.
+- **Detail** at `/professors/:id` shows the professor's avatar, bio, research interests, lab/research group, website/LinkedIn links, and their active opportunities (reusing the opportunity cards).
+- Opportunity cards and the opportunity detail page link the professor's name to their public profile.
+- Only **approved** professors are public. Pending/unapproved professors return 404 and never appear in the directory.
+- Professors edit their public fields from **My Profile** (`bio`, `websiteUrl`, `labName`, `researchInterests`); these are stored on `user_profiles` (additive columns) via `PATCH /api/profile`.
+- A public avatar endpoint (`GET /api/professors/:id/avatar`) serves only the approved professor's image — never CVs/transcripts or any private document.
+
+Research groups are implemented as a **lab/group name field** on the professor profile (shown on profiles and surfaced on opportunities). Full standalone research-group entities (dedicated tables, member lists, group pages) are a documented future enhancement — see Known Limitations.
+
+## Recommendations (Matched for you)
+
+Logged-in students get personalized opportunity recommendations from a transparent, **rule-based** engine (`backend/services/recommendations.js`) — no external AI APIs. The "Recommended for you" strip appears on the browse page and each card shows the reasons it matched.
+
+Students add **research interests**, **skills**, and **preferred topics/tags** in My Profile (stored on `user_profiles`). The engine scores active opportunities from approved professors by:
+
+- tag/interest overlap with the student's interests and preferred tags (strongest signal);
+- text overlap between the student's interests/skills and the opportunity title/description/tags;
+- tags shared with opportunities the student saved or applied to;
+- a freshness boost for recently posted opportunities;
+- de-prioritizing opportunities tied to a rejected application.
+
+Each recommendation returns a `score` and human-readable `reasons` (e.g. "Matches your interest in AI", "Similar to opportunities you saved", "Uses Python", "Recently posted"). Already-applied opportunities are excluded. If the profile has no interests yet, the endpoint returns the latest opportunities and flags `needsProfile` so the UI prompts the student to complete their profile. The endpoint (`GET /api/recommendations/opportunities`) is student-only and authenticated.
+
+## Notifications
+
+In-app notifications are created (best-effort, never blocking the underlying action) for:
+
+- **Students** — a professor replied to your question; your application was accepted/rejected.
+- **Professors** — a new question on one of your opportunities; a new application (noting attached documents); your account was approved.
+- **Admins** — a new professor signup is pending approval.
+
+Each notification carries a `type` and a `link_url` so clicking it deep-links to the relevant page (opportunity detail, My Opportunities, professor questions, admin dashboard). The header bell shows an unread count and a dropdown; a dedicated `/notifications` page lists everything with read/unread states, mark-as-read, mark-all-read, and delete. Notifications are strictly scoped to the owner — users can only read or modify their own (`GET/PATCH/DELETE /api/notifications...`).
 
 ## PDF Upload Storage
 
@@ -149,7 +186,12 @@ Pages and key components:
 | `/how-it-works` | How It Works (`info/HowItWorks`) |
 | `/for-professors` | For Professors (`info/ForProfessors`) |
 | `/faqs` | FAQs (`info/Faqs`) |
+| `/professors` | Professors directory (`professors/ProfessorsDirectory`) |
+| `/professors/:id` | Professor profile (`professors/ProfessorProfile`) |
+| `/notifications` | Notifications page (`common/NotificationsPage`) |
 | `/login` | Login / signup (`LoginView`); `?role=professor&signup=1` preselects professor signup |
+
+The browse page also renders a "Recommended for you" strip (`common/RecommendedForYou`) for logged-in students.
 
 Shared chrome: `Header` (role-aware navigation + notifications), `Footer` (Quick Links to the informational pages). Informational pages are public and refresh-safe via the nginx SPA fallback.
 
@@ -189,9 +231,14 @@ Shared chrome: `Header` (role-aware navigation + notifications), `Footer` (Quick
 | `POST` | `/api/opportunities/:id/questions` | Student only, CSRF required; uses `req.user.id` |
 | `GET` | `/api/professor/questions` | Approved professor; questions for own opportunities, optional `?status=open\|answered` |
 | `PATCH` | `/api/opportunity-questions/:questionId/answer` | Owning approved professor only, CSRF required |
-| `GET` | `/api/notifications` | Authenticated current user |
+| `GET` | `/api/professors` | Public; approved-professor directory with active-opportunity counts |
+| `GET` | `/api/professors/:id` | Public; approved professor profile + their active opportunities (404 if not found/approved) |
+| `GET` | `/api/professors/:id/avatar` | Public; approved professor avatar image only (never documents) |
+| `GET` | `/api/recommendations/opportunities` | Student only; ranked recommendations with reasons, excludes already-applied |
+| `GET` | `/api/notifications` | Authenticated current user; `?unread=true` filter, returns `unreadCount` |
 | `PATCH` | `/api/notifications/:id/read` | Authenticated owner, CSRF required |
 | `PATCH` | `/api/notifications/read-all` | Authenticated current user, CSRF required |
+| `DELETE` | `/api/notifications/:id` | Authenticated owner, CSRF required |
 | `GET` | `/api/admin/users` | Admin only |
 | `GET` | `/api/admin/pending` | Admin only |
 | `POST` | `/api/admin/approve` | Admin only, CSRF required |
@@ -464,3 +511,6 @@ Manual flow:
 - Profile avatar access is authenticated and current-user scoped; public profile/avatar discovery is intentionally not implemented yet.
 - Q&A has no dedicated admin moderation endpoint; admins see questions through the per-opportunity endpoint, and there is no aggregate "My Questions" page for students (students see replies on each opportunity detail page).
 - In-app notifications are best-effort and minimal (no email/digest delivery); a failed notification insert never blocks the underlying action.
+- **Research groups** are modeled as a lab/group name field on the professor profile, not as standalone entities. Dedicated `research_groups`/`research_group_members` tables, group pages, and membership are a future enhancement; the professor-profile fields cover the first version.
+- Recommendations are a transparent rule-based ranking (tag/text/behavioral overlap), not a trained model; there is intentionally no "AI" claim. They are computed on demand and not cached.
+- Recommendations do not generate notifications (to avoid spam).

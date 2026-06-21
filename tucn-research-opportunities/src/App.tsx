@@ -17,6 +17,10 @@ import ProfilePage from './components/profile/ProfilePage';
 import HowItWorks from './components/info/HowItWorks';
 import ForProfessors from './components/info/ForProfessors';
 import Faqs from './components/info/Faqs';
+import ProfessorsDirectory from './components/professors/ProfessorsDirectory';
+import ProfessorProfile from './components/professors/ProfessorProfile';
+import RecommendedForYou from './components/common/RecommendedForYou';
+import NotificationsPage from './components/common/NotificationsPage';
 import { apiFetch, resetCsrfToken } from './api';
 
 // Demo mode is opt-in for local demos only. Production builds leave
@@ -25,9 +29,9 @@ import { apiFetch, resetCsrfToken } from './api';
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 const INITIAL_OPPORTUNITIES: Opportunity[] = DEMO_MODE ? MOCK_OPPORTUNITIES : [];
 
-type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile' | 'howItWorks' | 'forProfessors' | 'faqs' | 'notFound';
+type View = 'login' | 'list' | 'detail' | 'create' | 'dashboard' | 'applications' | 'profile' | 'howItWorks' | 'forProfessors' | 'faqs' | 'professors' | 'professorDetail' | 'notifications' | 'notFound';
 
-function parseRoute(pathname: string): { view: View; opportunityId?: string } {
+function parseRoute(pathname: string): { view: View; opportunityId?: string; professorId?: string } {
   if (pathname === '/login' || pathname === '/admin') return { view: 'login' };
   if (pathname === '/profile') return { view: 'profile' };
   if (pathname === '/applications') return { view: 'applications' };
@@ -35,6 +39,10 @@ function parseRoute(pathname: string): { view: View; opportunityId?: string } {
   if (pathname === '/how-it-works') return { view: 'howItWorks' };
   if (pathname === '/for-professors') return { view: 'forProfessors' };
   if (pathname === '/faqs') return { view: 'faqs' };
+  if (pathname === '/notifications') return { view: 'notifications' };
+  if (pathname === '/professors') return { view: 'professors' };
+  const profMatch = pathname.match(/^\/professors\/([^/]+)$/);
+  if (profMatch) return { view: 'professorDetail', professorId: decodeURIComponent(profMatch[1]) };
   if (pathname === '/opportunities' || pathname === '/') return { view: 'list' };
   const match = pathname.match(/^\/opportunities\/([^/]+)$/);
   if (match) return { view: 'detail', opportunityId: decodeURIComponent(match[1]) };
@@ -90,6 +98,7 @@ export default function App() {
   const [pendingApplyOpportunityId, setPendingApplyOpportunityId] = useState<string | null>(null);
   const [pendingSaveOpportunityId, setPendingSaveOpportunityId] = useState<string | null>(null);
   const [pendingQuestionOpportunityId, setPendingQuestionOpportunityId] = useState<string | null>(null);
+  const [selectedProfessorId, setSelectedProfessorId] = useState<string | null>(initialRoute.professorId ?? null);
   const [toastMessage, setToastMessage] = useState('');
 
   const showToast = (message: string) => {
@@ -123,8 +132,29 @@ export default function App() {
     setSelectedOpportunity(null);
     setApplyModalOpen(false);
     setShowUserMenu(false);
-    setView(route.view);
+    if (route.professorId) setSelectedProfessorId(route.professorId);
+    if (route.opportunityId) {
+      loadOpportunityById(route.opportunityId);
+    } else {
+      setView(route.view);
+    }
     pushPath(path);
+    window.scrollTo(0, 0);
+  };
+
+  const openProfessor = (professorId: string) => {
+    setSelectedProfessorId(professorId);
+    setSelectedOpportunity(null);
+    setShowUserMenu(false);
+    setView('professorDetail');
+    pushPath(`/professors/${encodeURIComponent(professorId)}`);
+    window.scrollTo(0, 0);
+  };
+
+  const goToProfessors = () => {
+    setShowUserMenu(false);
+    setView('professors');
+    pushPath('/professors');
     window.scrollTo(0, 0);
   };
 
@@ -520,6 +550,7 @@ export default function App() {
       } else {
         setSelectedOpportunity(null);
         setApplyModalOpen(false);
+        if (route.professorId) setSelectedProfessorId(route.professorId);
         if (['profile', 'applications', 'create'].includes(route.view) && !currentUserRef.current) setView('login');
         else setView(route.view);
       }
@@ -717,39 +748,53 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 text-gray-800">
-      <Header 
-        currentUser={currentUser} 
-        setView={setView} 
-        showUserMenu={showUserMenu} 
-        setShowUserMenu={setShowUserMenu} 
-        handleLogout={handleLogout} 
+      <Header
+        currentUser={currentUser}
+        setView={setView}
+        showUserMenu={showUserMenu}
+        setShowUserMenu={setShowUserMenu}
+        handleLogout={handleLogout}
+        onNavigate={navigateToPath}
       />
 
       <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
         <AnimatePresence mode="wait">
           {view === 'list' ? (
-            <OpportunityList
-              opportunities={opportunities}
-              isLoading={isLoading}
-              loadError={loadError}
-              onRetry={loadPostings}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              activeTags={activeTags}
-              toggleTag={toggleTag}
-              allTags={allTags}
-              showFilterMenu={showFilterMenu}
-              setShowFilterMenu={setShowFilterMenu}
-              paginatedOpportunities={paginatedOpportunities}
-              currentPage={currentPage}
-              setCurrentPage={setCurrentPage}
-              totalPages={totalPages}
-              handleCardClick={handleCardClick}
-              savedOpportunityIds={savedOpportunityIds}
-              applicationStatusForOpportunity={applicationStatusForOpportunity}
-              handleToggleSave={handleToggleSave}
-              handleShareOpportunity={handleShareOpportunity}
-            />
+            <div key="list">
+              {currentUser?.role === 'student' && (
+                <RecommendedForYou
+                  handleCardClick={handleCardClick}
+                  savedOpportunityIds={savedOpportunityIds}
+                  applicationStatusForOpportunity={applicationStatusForOpportunity}
+                  handleToggleSave={handleToggleSave}
+                  handleShareOpportunity={handleShareOpportunity}
+                  onEditInterests={() => { setView('profile'); pushPath('/profile'); window.scrollTo(0, 0); }}
+                />
+              )}
+              <OpportunityList
+                opportunities={opportunities}
+                isLoading={isLoading}
+                loadError={loadError}
+                onRetry={loadPostings}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                activeTags={activeTags}
+                toggleTag={toggleTag}
+                allTags={allTags}
+                showFilterMenu={showFilterMenu}
+                setShowFilterMenu={setShowFilterMenu}
+                paginatedOpportunities={paginatedOpportunities}
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+                totalPages={totalPages}
+                handleCardClick={handleCardClick}
+                savedOpportunityIds={savedOpportunityIds}
+                applicationStatusForOpportunity={applicationStatusForOpportunity}
+                handleToggleSave={handleToggleSave}
+                handleShareOpportunity={handleShareOpportunity}
+                onOpenProfessor={openProfessor}
+              />
+            </div>
           ) : view === 'create' && currentUser?.role === 'professor' ? (
             <CreateOpportunity 
               currentUser={currentUser}
@@ -789,6 +834,7 @@ export default function App() {
               handleToggleSave={handleToggleSave}
               handleShareOpportunity={handleShareOpportunity}
               onSignInToAsk={() => { setPendingQuestionOpportunityId(selectedOpportunity.id); goToLogin(); }}
+              onOpenProfessor={openProfessor}
             />
           ) : view === 'applications' && currentUser?.role === 'student' ? (
             <StudentApplications 
@@ -817,6 +863,20 @@ export default function App() {
             />
           ) : view === 'faqs' ? (
             <Faqs onBrowse={goToList} />
+          ) : view === 'professors' ? (
+            <ProfessorsDirectory onOpenProfessor={openProfessor} />
+          ) : view === 'professorDetail' && selectedProfessorId ? (
+            <ProfessorProfile
+              professorId={selectedProfessorId}
+              onBack={goToProfessors}
+              handleCardClick={handleCardClick}
+              savedOpportunityIds={savedOpportunityIds}
+              applicationStatusForOpportunity={applicationStatusForOpportunity}
+              handleToggleSave={handleToggleSave}
+              handleShareOpportunity={handleShareOpportunity}
+            />
+          ) : view === 'notifications' && currentUser ? (
+            <NotificationsPage onNavigate={navigateToPath} />
           ) : view === 'notFound' ? (
             <div className="max-w-2xl mx-auto bg-white border border-gray-100 rounded-2xl shadow-sm p-8 text-center">
               <h1 className="text-xl font-bold text-gray-900">Opportunity not found</h1>
