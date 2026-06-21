@@ -10,6 +10,27 @@ const ADMIN_NAME = process.env.ADMIN_NAME || 'AIRi Admin';
 const RESET_ADMIN_PASSWORD = process.env.RESET_ADMIN_PASSWORD === 'true';
 
 db.serialize(() => {
+  // Ensure the users table exists so this script is safe to run before any
+  // migration has populated the database (e.g. a fresh Docker volume). This
+  // matches the schema in migrations/000_init_users.sql and is a no-op when
+  // the table is already present, so it never deletes or overwrites data.
+  db.run(
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      email TEXT UNIQUE,
+      role TEXT,
+      department TEXT,
+      password TEXT,
+      approved INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    createErr => {
+      if (createErr) { console.error('Failed to ensure users table', createErr); db.close(); process.exit(1); }
+    }
+  );
+
   db.get(`SELECT id FROM users WHERE lower(email) = ?`, [ADMIN_EMAIL], (err, row) => {
     if (err) { console.error(err); process.exit(1); }
     if (row) {
