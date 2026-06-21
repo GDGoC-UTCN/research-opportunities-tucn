@@ -76,6 +76,23 @@ function validateStatusUpdate(body) {
   return null;
 }
 
+const MAX_QUESTION = 1000;
+const MAX_ANSWER = 2000;
+
+function validateQuestion(body) {
+  const text = asString(body.questionText);
+  if (!text) return 'Question is required';
+  if (text.length > MAX_QUESTION) return `Question must be under ${MAX_QUESTION} characters`;
+  return null;
+}
+
+function validateQuestionAnswer(body) {
+  const text = asString(body.answerText);
+  if (!text) return 'Answer is required';
+  if (text.length > MAX_ANSWER) return `Answer must be under ${MAX_ANSWER} characters`;
+  return null;
+}
+
 module.exports = {
   asString,
   isEmail,
@@ -85,4 +102,6 @@ module.exports = {
   validateOpportunity,
   validateApplication,
   validateStatusUpdate,
+  validateQuestion,
+  validateQuestionAnswer,
 };

@@ -672,6 +672,99 @@ async function main() {
       'rejected application should appear in rejected'
     );
 
+    // ── Q&A: student questions and professor replies ──────────────────
+    result = await request('POST', `/api/opportunities/${opportunityId}/questions`, guest, { questionText: 'Anonymous question?' });
+    assert(result.response.status === 401, 'unauthenticated cannot ask a question');
+
+    result = await request('POST', `/api/opportunities/${opportunityId}/questions`, professor, { questionText: 'Professor question?' });
+    assert(result.response.status === 403, 'professor cannot ask a question as a student');
+
+    result = await request('POST', `/api/opportunities/${opportunityId}/questions`, student, { questionText: '   ' });
+    assert(result.response.status === 400, 'empty question is rejected');
+
+    result = await request('POST', `/api/opportunities/${opportunityId}/questions`, student, { questionText: 'Is prior PyTorch experience required?' });
+    assert(result.response.status === 201 && result.json.question.status === 'open', 'student can ask a private question');
+    const privateQuestionId = result.json.question.id;
+
+    result = await request('POST', `/api/opportunities/${opportunityId}/questions`, otherStudent, { questionText: 'What is the weekly time commitment?', isPublic: true });
+    assert(result.response.status === 201, 'student can ask a public question');
+    const publicQuestionId = result.json.question.id;
+
+    // Before any answer, guests see no questions (nothing answered+public yet).
+    result = await request('GET', `/api/opportunities/${opportunityId}/questions`, guest);
+    assert(
+      result.response.status === 200 &&
+        !result.json.questions.some(q => q.id === String(privateQuestionId)) &&
+        !result.json.questions.some(q => q.id === String(publicQuestionId)),
+      'guest does not see unanswered or private questions'
+    );
+
+    // A student cannot see another student's private question.
+    result = await request('GET', `/api/opportunities/${opportunityId}/questions`, otherStudent);
+    assert(
+      result.response.status === 200 &&
+        result.json.questions.some(q => q.id === String(publicQuestionId)) &&
+        !result.json.questions.some(q => q.id === String(privateQuestionId)),
+      'student sees own question but not another student private question'
+    );
+
+    // The owning professor sees every question, with student names.
+    result = await request('GET', `/api/opportunities/${opportunityId}/questions`, professor);
+    assert(
+      result.response.status === 200 &&
+        result.json.questions.some(q => q.id === String(privateQuestionId) && q.studentName) &&
+        result.json.questions.some(q => q.id === String(publicQuestionId)),
+      'owning professor sees all questions with names'
+    );
+
+    // A non-owning professor cannot see private/unanswered questions.
+    result = await request('GET', `/api/opportunities/${opportunityId}/questions`, otherProfessor);
+    assert(
+      result.response.status === 200 && !result.json.questions.some(q => q.id === String(privateQuestionId)),
+      'non-owning professor does not see private question'
+    );
+
+    // Professor dashboard question list is scoped to owned opportunities.
+    result = await request('GET', '/api/professor/questions', professor);
+    assert(
+      result.response.status === 200 && result.json.questions.some(q => q.id === String(publicQuestionId) && q.opportunityTitle),
+      'owning professor lists own opportunity questions'
+    );
+    result = await request('GET', '/api/professor/questions', otherProfessor);
+    assert(
+      result.response.status === 200 && !result.json.questions.some(q => q.id === String(publicQuestionId)),
+      'non-owning professor does not list another professor questions'
+    );
+
+    // Answering authorization.
+    result = await request('PATCH', `/api/opportunity-questions/${publicQuestionId}/answer`, otherProfessor, { answerText: 'Hijacked answer' });
+    assert(result.response.status === 403, 'non-owning professor cannot answer the question');
+
+    result = await request('PATCH', `/api/opportunity-questions/${publicQuestionId}/answer`, professor, { answerText: '' });
+    assert(result.response.status === 400, 'empty answer is rejected');
+
+    result = await request('PATCH', `/api/opportunity-questions/${publicQuestionId}/answer`, guest, { answerText: 'No auth' });
+    assert(result.response.status === 401, 'unauthenticated cannot answer a question');
+
+    result = await request('PATCH', `/api/opportunity-questions/${publicQuestionId}/answer`, professor, { answerText: 'About 10 hours per week.' });
+    assert(result.response.status === 200 && result.json.question.status === 'answered', 'owning professor can answer the question');
+
+    // Answer the private question too, to verify privacy holds after answering.
+    await request('PATCH', `/api/opportunity-questions/${privateQuestionId}/answer`, professor, { answerText: 'Yes, basic PyTorch is expected.' });
+
+    // The answered public question now appears publicly, anonymized.
+    result = await request('GET', `/api/opportunities/${opportunityId}/questions`, guest);
+    const publicSeen = result.json.questions.find(q => q.id === String(publicQuestionId));
+    assert(publicSeen && publicSeen.answerText && publicSeen.studentName === null, 'answered public question is shown anonymously');
+    assert(!result.json.questions.some(q => q.id === String(privateQuestionId)), 'answered private question stays hidden from the public');
+
+    // The asking student sees their own answer.
+    result = await request('GET', `/api/opportunities/${opportunityId}/questions`, otherStudent);
+    assert(
+      result.json.questions.some(q => q.id === String(publicQuestionId) && q.answerText),
+      'student sees the answer to their own question'
+    );
+
     await request('DELETE', `/api/opportunities/${opportunityId}`, admin);
     await request('DELETE', `/api/opportunities/${requiredCvOpportunityId}`, admin);
     await request('DELETE', `/api/opportunities/${uploadedCvOpportunityId}`, admin);

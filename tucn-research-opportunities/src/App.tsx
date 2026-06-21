@@ -89,6 +89,7 @@ export default function App() {
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [pendingApplyOpportunityId, setPendingApplyOpportunityId] = useState<string | null>(null);
   const [pendingSaveOpportunityId, setPendingSaveOpportunityId] = useState<string | null>(null);
+  const [pendingQuestionOpportunityId, setPendingQuestionOpportunityId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState('');
 
   const showToast = (message: string) => {
@@ -146,6 +147,14 @@ export default function App() {
   };
 
   const continuePendingApply = (user: User, fallbackView: View) => {
+    // Returning from "Sign in to ask a question" — go back to the opportunity.
+    if (pendingQuestionOpportunityId) {
+      const oppId = pendingQuestionOpportunityId;
+      setPendingQuestionOpportunityId(null);
+      pushPath(`/opportunities/${encodeURIComponent(oppId)}`);
+      loadOpportunityById(oppId);
+      return;
+    }
     if (user.role === 'student' && pendingApplyOpportunityId) {
       const pending = opportunities.find(opp => opp.id === pendingApplyOpportunityId)
         || (selectedOpportunity?.id === pendingApplyOpportunityId ? selectedOpportunity : null);
@@ -357,6 +366,7 @@ export default function App() {
     setApplyModalOpen(false);
     setPendingApplyOpportunityId(null);
     setPendingSaveOpportunityId(null);
+    setPendingQuestionOpportunityId(null);
     goToList();
   };
 
@@ -778,6 +788,7 @@ export default function App() {
               applicationStatus={applicationStatusForOpportunity(selectedOpportunity.id)}
               handleToggleSave={handleToggleSave}
               handleShareOpportunity={handleShareOpportunity}
+              onSignInToAsk={() => { setPendingQuestionOpportunityId(selectedOpportunity.id); goToLogin(); }}
             />
           ) : view === 'applications' && currentUser?.role === 'student' ? (
             <StudentApplications 

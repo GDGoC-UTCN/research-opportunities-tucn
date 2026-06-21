@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { ArrowLeft, Calendar as CalendarIcon, Clock, DollarSign, Bookmark, Share2, CheckCircle2, HelpCircle } from 'lucide-react';
 import { ApplicationStatus, Opportunity, User, Application } from '../../types';
+import OpportunityQA from './OpportunityQA';
 
 interface Props {
   selectedOpportunity: Opportunity;
@@ -13,6 +14,7 @@ interface Props {
   applicationStatus?: ApplicationStatus;
   handleToggleSave: (opportunity: Opportunity) => void;
   handleShareOpportunity: (opportunity: Opportunity) => void;
+  onSignInToAsk: () => void;
 }
 
 const STATUS_STYLES: Record<ApplicationStatus, string> = {
@@ -37,7 +39,8 @@ export default function OpportunityDetail({
   saved,
   applicationStatus,
   handleToggleSave,
-  handleShareOpportunity
+  handleShareOpportunity,
+  onSignInToAsk
 }: Props) {
   const hasApplied = applications.some(
     a => a.opportunityId === selectedOpportunity.id && a.studentId === currentUser?.id
@@ -251,6 +254,15 @@ export default function OpportunityDetail({
             </div>
           </div>
         </aside>
+      </div>
+
+      {/* Questions & answers */}
+      <div className="mt-6">
+        <OpportunityQA
+          opportunityId={selectedOpportunity.id}
+          currentUser={currentUser}
+          onSignInToAsk={onSignInToAsk}
+        />
       </div>
     </motion.div>
   );

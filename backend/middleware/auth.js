@@ -81,6 +81,22 @@ function requireApprovedProfessor(req, res, next) {
   next();
 }
 
+// Sets req.user when a valid session/token is present, otherwise continues as a
+// public visitor. Used by endpoints with mixed public/authenticated visibility.
+const optionalAuth = asyncHandler(async (req, res, next) => {
+  const token = readToken(req);
+  if (token) {
+    try {
+      const payload = jwt.verify(token, getJwtSecret());
+      const row = await get('SELECT id,name,email,role,department,approved FROM users WHERE id = ?', [payload.sub]);
+      if (row) req.user = cleanUser(row);
+    } catch {
+      // Invalid/expired token — treat as anonymous.
+    }
+  }
+  next();
+});
+
 module.exports = {
   COOKIE_NAME,
   cookieOptions,
@@ -89,4 +105,5 @@ module.exports = {
   requireAuth,
   requireRole,
   requireApprovedProfessor,
+  optionalAuth,
 };

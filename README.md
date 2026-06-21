@@ -1,6 +1,8 @@
 # AIRi@UTCN Research Opportunities
 
-React/Vite/TypeScript frontend plus an Express + SQLite backend for AIRi@UTCN research opportunities. Anyone can browse public opportunities, authenticated students apply to professor-posted projects, professors manage their own opportunities and applicants, and admins approve professor accounts and manage platform data.
+React/Vite/TypeScript frontend plus an Express + SQLite backend for AIRi@UTCN research opportunities. Anyone can browse public opportunities, authenticated students apply to professor-posted projects and ask questions before applying, professors manage their own opportunities and applicants and answer questions, and admins approve professor accounts and manage platform data. The app ships with informational pages (How It Works, For Professors, FAQs) and a monochrome, editorial AIRi@UTCN interface.
+
+This is a production-oriented application backed by a real API, server-side RBAC/CSRF, SQLite persistence, and S3-compatible object storage — not a mock or `localStorage` demo.
 
 ## Architecture
 
@@ -55,6 +57,23 @@ Students have a dedicated My Opportunities page with four exclusive sections:
 
 An opportunity appears in only one section at a time. Application status wins over saved state. When a student applies to a saved opportunity, the backend removes the saved row after the application is created, and the item moves from Saved to Applied. If a student tries to save an opportunity they already applied to, the save endpoint returns `alreadyApplied` status and the UI shows Applied, Accepted, or Rejected instead of Save.
 
+## Student Questions & Professor Replies (Q&A)
+
+Students can ask questions about an opportunity before applying, and the owning professor can reply. Data lives in the `opportunity_questions` table (`question_text`, `answer_text`, `status` open/answered, `is_public`, timestamps).
+
+Behavior:
+
+- **Students** see an "Ask a question before applying" form on each opportunity detail page. Questions are validated (non-empty, max 1000 characters) and created with the authenticated `req.user.id` — the client-sent identity is never trusted. New questions show as "Waiting for reply".
+- **Professors** see a Questions panel on their dashboard listing questions for opportunities they own (open ones first), with a reply box. They can reply (max 2000 characters) and edit a reply later. Answers are validated and stamped with `answered_at`.
+- **Students** see replies on the opportunity detail page for their own questions, marked "Answered" with the answer date.
+- A best-effort in-app notification is created for the professor when a question is asked and for the student when it is answered.
+
+Privacy model:
+
+- Questions are **private by default** — visible only to the asking student, the owning professor, and admins.
+- When asking, a student may tick *"Allow this question to be shown anonymously to other students if answered."* If checked and once answered, the Q&A appears publicly on the opportunity detail page **without the student's name**.
+- Private questions are never exposed to other students or non-owning professors. Public answered questions are always anonymized for everyone except the asker, the owning professor, and admins.
+
 ## PDF Upload Storage
 
 New CV/transcript uploads use `multipart/form-data`. PDFs are validated on the backend and stored in object storage; SQLite stores only metadata and opaque storage keys.
@@ -104,6 +123,36 @@ Credentialed CORS uses an allowlist from `CORS_ORIGIN`. Multiple origins are com
 
 Passwords and password hashes are never returned by the API.
 
+## Backend Architecture
+
+- **Express API** (`backend/index.js`) mounts feature routers under both `/` and `/api`, with `helmet`, credentialed CORS, `cookie-parser`, JSON/body limits, and the CSRF guard.
+- **Routes** (`backend/routes/`): `auth` (signup/login/logout/me), `admin` (approvals, user management), `opportunities` (public listing/detail, create/edit/delete), `applications` (apply, status updates, protected file downloads), `profile` (profile, avatar, documents, saved opportunities, my-opportunities), `notifications`, and `questions` (Q&A).
+- **Persistence** (`backend/db.js`): SQLite accessed through small promisified `run`/`get`/`all` helpers. `initDb()` creates every table with `CREATE TABLE IF NOT EXISTS` on boot and runs **idempotent runtime schema repair** (`ensureApplicationFileColumns`, `ensureUserProfileColumns`, `ensureOpportunityColumns`, `ensureOpportunityQuestionColumns`) that `ALTER TABLE ... ADD COLUMN` only when a column is missing. Schema changes are additive and never reset or drop data.
+- **Storage service** (`backend/services/storage.js`): an S3-compatible client for production/MinIO plus a local-filesystem provider used by tests; both expose the same put/get/delete interface and keep credentials backend-only.
+- **Validation** (`backend/utils/validation.js`): pure validators (`validateSignup`, `validateLogin`, `validateOpportunity`, `validateApplication`, `validateStatusUpdate`, `validateQuestion`, `validateQuestionAnswer`) plus `asString`/`cleanUser` helpers.
+- **SQL migrations** (`backend/migrations/`) mirror the runtime schema for the Docker migrations service; the API itself bootstraps via `initDb()`.
+
+## Frontend Architecture
+
+React 19 + Vite + TypeScript + Tailwind CSS, with a lightweight history-based router in `src/App.tsx` (no router library). `src/api.ts` provides `apiFetch`, which attaches the CSRF token automatically and retries once on token expiry. The UI uses a monochrome, editorial AIRi@UTCN design system.
+
+Pages and key components:
+
+| Route | View / component |
+|---|---|
+| `/`, `/opportunities` | Browse (`OpportunityList`, `OpportunityCard`) |
+| `/opportunities/:id` | Opportunity Detail (`OpportunityDetail`) with the Q&A panel (`OpportunityQA`) |
+| `/applications` | My Opportunities (`StudentApplications`) |
+| `/profile` | My Profile (`ProfilePage`) |
+| professor dashboard | `TeacherDashboard` + `ProfessorQuestions` + `CreateOpportunity`/`EditOpportunity` |
+| `/admin` | Admin Dashboard (`AdminDashboard`) |
+| `/how-it-works` | How It Works (`info/HowItWorks`) |
+| `/for-professors` | For Professors (`info/ForProfessors`) |
+| `/faqs` | FAQs (`info/Faqs`) |
+| `/login` | Login / signup (`LoginView`); `?role=professor&signup=1` preselects professor signup |
+
+Shared chrome: `Header` (role-aware navigation + notifications), `Footer` (Quick Links to the informational pages). Informational pages are public and refresh-safe via the nginx SPA fallback.
+
 ## Endpoint Access
 
 | Method | Path | Access |
@@ -136,12 +185,19 @@ Passwords and password hashes are never returned by the API.
 | `GET` | `/api/profile/saved-opportunities` | Authenticated current user |
 | `POST` | `/api/profile/saved-opportunities/:opportunityId` | Authenticated current user, CSRF required |
 | `DELETE` | `/api/profile/saved-opportunities/:opportunityId` | Authenticated current user, CSRF required |
+| `GET` | `/api/opportunities/:id/questions` | Public sees answered public Q&A (anonymized); asker sees own; owning professor/admin see all |
+| `POST` | `/api/opportunities/:id/questions` | Student only, CSRF required; uses `req.user.id` |
+| `GET` | `/api/professor/questions` | Approved professor; questions for own opportunities, optional `?status=open\|answered` |
+| `PATCH` | `/api/opportunity-questions/:questionId/answer` | Owning approved professor only, CSRF required |
+| `GET` | `/api/notifications` | Authenticated current user |
+| `PATCH` | `/api/notifications/:id/read` | Authenticated owner, CSRF required |
+| `PATCH` | `/api/notifications/read-all` | Authenticated current user, CSRF required |
 | `GET` | `/api/admin/users` | Admin only |
 | `GET` | `/api/admin/pending` | Admin only |
 | `POST` | `/api/admin/approve` | Admin only, CSRF required |
 | `DELETE` | `/api/admin/users/:key` | Admin only, CSRF required; cascades dependent data |
 
-Application listing is scoped server-side: students see only their own applications, professors see applications for their own opportunities, and admins see all applications.
+Application listing is scoped server-side: students see only their own applications, professors see applications for their own opportunities, and admins see all applications. Q&A visibility is enforced server-side: private questions are never returned to other students or non-owning professors.
 
 ## Opportunity Links And Saved Opportunities
 
@@ -195,6 +251,8 @@ S3_SECRET_ACCESS_KEY=minioadmin123
 S3_FORCE_PATH_STYLE=true
 MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=minioadmin123
+# Only used when STORAGE_PROVIDER=local (backend smoke tests / local fallback)
+LOCAL_STORAGE_DIR=./backend/.local-storage
 ADMIN_EMAIL=AIRI@campus.utcluj.ro
 ADMIN_INITIAL_PASSWORD=replace-with-a-strong-initial-admin-password
 ADMIN_NAME=AIRi Admin
@@ -271,6 +329,44 @@ COOKIE_DOMAIN=
 
 Switch `COOKIE_SECURE=true` when serving the app through HTTPS. Never commit `.env`.
 
+### Docker operations
+
+```bash
+# Validate the compose file (env interpolation, service graph)
+docker compose config
+
+# Build and start in the background
+docker compose build
+docker compose up -d --remove-orphans
+
+# Follow logs
+docker compose logs -f
+docker compose logs -f api
+
+# Health and session checks (through the nginx frontend proxy)
+curl -i http://localhost:8080/api/health      # -> { "ok": true }
+curl -i http://localhost:8080/api/me          # -> 401 when unauthenticated
+
+# Stop without destroying data
+docker compose down
+```
+
+> **Do not run `docker compose down -v`.** The `-v` flag deletes the `tucn_api_data` (SQLite) and `tucn_minio_data` (object storage) volumes and permanently destroys all data.
+
+Volume backups (run before any upgrade or risky change):
+
+```bash
+# Back up the SQLite volume
+docker run --rm -v tucn_api_data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/tucn_api_data-$(date +%F).tar.gz -C /data .
+
+# Back up the MinIO object-storage volume
+docker run --rm -v tucn_minio_data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/tucn_minio_data-$(date +%F).tar.gz -C /data .
+```
+
+MinIO runs as the `minio` service with its console at [http://localhost:9001](http://localhost:9001); the `createbuckets` service creates the configured bucket idempotently and keeps it private. The SQLite schema is created/repaired automatically when the `api` service boots (`initDb()`), so existing data is preserved across restarts and image upgrades.
+
 ## Verification
 
 ```bash
@@ -329,7 +425,10 @@ Manual flow:
 10. Professor sees only own applications and accepts/rejects one.
 11. A different professor cannot update that application.
 12. Student cannot access admin endpoints or create opportunities.
-13. Logout, then `/api/me` returns unauthenticated while public browsing still works.
+13. Student opens an opportunity detail, asks a question (optionally ticking "show anonymously if answered"), and sees it as "Waiting for reply".
+14. Owning professor opens the dashboard Questions panel, replies, and the student sees the answer on the opportunity detail page.
+15. Confirm a public answered question appears (anonymized) to a logged-out visitor, while private questions stay hidden from other students.
+16. Logout, then `/api/me` returns unauthenticated while public browsing still works.
 
 ## Production Checklist
 
@@ -346,9 +445,22 @@ Manual flow:
 - Put a reverse proxy or platform-level rate limit in front of the API.
 - Review `npm audit` regularly, especially the `sqlite3` transitive toolchain advisories.
 
+## Troubleshooting
+
+- **CORS or login errors in the browser.** The request `Origin` must be in `CORS_ORIGIN` (comma-separated) or match the forwarded public host of the nginx proxy. Add your exact scheme/host/port and restart the API.
+- **Logged in but the session does not stick over HTTP.** A `secure` cookie is dropped on plain HTTP. Use `COOKIE_SECURE=false` and `COOKIE_SAME_SITE=lax` for HTTP/IP testing; use `COOKIE_SECURE=true` only behind HTTPS.
+- **API exits on boot with a `JWT_SECRET` error.** `JWT_SECRET` must be set and at least 32 characters. Set it in `.env` (and your shell when running `docker compose config`).
+- **`SQLITE_ERROR: no such column ... updated_at` (or similar) on an old database.** Restart the API — `initDb()` runs additive runtime schema repair on boot. Schema changes never drop data; no manual migration is needed.
+- **`SQLITE_ERROR: no such table: users` from admin seeding.** Use the Node seeder (`npm run seed-admin`), which is `DB_PATH`-aware, creates the `users` table if missing, and is idempotent. The legacy Knex seed path was removed.
+- **Port 8080 already allocated.** Another process (or a previous stack) holds the port. Stop it, or change the published port in `docker-compose.yml` (`"8080:80"`).
+- **MinIO/bucket problems (uploads or downloads fail).** Confirm the `minio` and `createbuckets` services are healthy, that `S3_BUCKET` matches across services, and that `S3_ENDPOINT`/credentials are correct. The console at [http://localhost:9001](http://localhost:9001) helps verify the bucket exists and is private.
+- **Browse shows an empty state.** That is expected when there are no opportunities from approved professors. Run `npm run check-authors` in `backend/` to report opportunities whose author is not an approved professor. Set `VITE_DEMO_MODE=true` only for local demos.
+
 ## Known Limitations
 
 - Legacy PDF uploads may still exist as base64 JSON in old SQLite rows; migrate those rows to object storage later if desired.
 - SQLite is retained for now; the DB helper and route boundaries are kept simple so a later PostgreSQL migration is practical.
 - There is no audit log yet for approvals, deletions, or auth events.
 - Profile avatar access is authenticated and current-user scoped; public profile/avatar discovery is intentionally not implemented yet.
+- Q&A has no dedicated admin moderation endpoint; admins see questions through the per-opportunity endpoint, and there is no aggregate "My Questions" page for students (students see replies on each opportunity detail page).
+- In-app notifications are best-effort and minimal (no email/digest delivery); a failed notification insert never blocks the underlying action.
