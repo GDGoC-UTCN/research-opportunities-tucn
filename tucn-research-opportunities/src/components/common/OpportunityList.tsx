@@ -26,6 +26,7 @@ interface Props {
   handleToggleSave: (opp: Opportunity) => void;
   handleShareOpportunity: (opp: Opportunity) => void;
   onOpenProfessor?: (professorId: string) => void;
+  afterHero?: React.ReactNode;
 }
 
 function Stat({ value, label }: { value: number | string; label: string }) {
@@ -58,7 +59,8 @@ export default function OpportunityList({
   applicationStatusForOpportunity,
   handleToggleSave,
   handleShareOpportunity,
-  onOpenProfessor
+  onOpenProfessor,
+  afterHero
 }: Props) {
   const totalVisible = opportunities.filter(opp => {
     const matchesSearch =
@@ -129,6 +131,9 @@ export default function OpportunityList({
           </div>
         </div>
       </section>
+
+      {/* Personalized recommendations sit directly under the hero. */}
+      {afterHero}
 
       {opportunities.length === 0 ? (
         isLoading ? (
