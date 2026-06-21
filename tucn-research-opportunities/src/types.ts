@@ -30,6 +30,20 @@ export interface Opportunity {
   status?: 'active' | 'archived';
 }
 
+export interface OpportunityQuestion {
+  id: string;
+  opportunityId: string;
+  opportunityTitle?: string;
+  questionText: string;
+  answerText?: string | null;
+  status: 'open' | 'answered';
+  isPublic: boolean;
+  isOwnQuestion?: boolean;
+  studentName?: string | null;
+  createdAt?: string | null;
+  answeredAt?: string | null;
+}
+
 export type Role = 'student' | 'professor' | 'admin';
 
 export interface User {

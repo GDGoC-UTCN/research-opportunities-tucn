@@ -10,6 +10,7 @@ const opportunityRoutes = require('./routes/opportunities');
 const applicationRoutes = require('./routes/applications');
 const profileRoutes = require('./routes/profile');
 const notificationRoutes = require('./routes/notifications');
+const questionRoutes = require('./routes/questions');
 const { issueCsrfToken, requireCsrf } = require('./middleware/csrf');
 const { notFound, errorHandler } = require('./utils/errors');
 
@@ -105,6 +106,7 @@ router.use(opportunityRoutes);
 router.use(applicationRoutes);
 router.use(profileRoutes);
 router.use(notificationRoutes);
+router.use(questionRoutes);
 
 app.use(router);
 app.use('/api', router);

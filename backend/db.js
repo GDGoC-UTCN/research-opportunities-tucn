@@ -84,9 +84,60 @@ function initDb() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_id, opportunity_id)
     )`);
+    // In-app notifications (also referenced by applications/questions flows).
+    db.run(`CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT,
+      read INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    // Student questions about an opportunity and the owning professor's replies.
+    db.run(`CREATE TABLE IF NOT EXISTS opportunity_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      opportunity_id TEXT NOT NULL,
+      student_id TEXT NOT NULL,
+      student_name TEXT,
+      question_text TEXT NOT NULL,
+      answer_text TEXT,
+      status TEXT DEFAULT 'open',
+      is_public INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      answered_at TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`);
     ensureApplicationFileColumns();
     ensureUserProfileColumns();
     ensureOpportunityColumns();
+    ensureOpportunityQuestionColumns();
+  });
+}
+
+function ensureOpportunityQuestionColumns() {
+  // Runtime schema repair for the Q&A table: add any column missing from an
+  // older partial table. Additive and idempotent; never drops or resets data.
+  const columns = [
+    ['student_name', 'TEXT'],
+    ['answer_text', 'TEXT'],
+    ['status', "TEXT DEFAULT 'open'"],
+    ['is_public', 'INTEGER DEFAULT 0'],
+    ['answered_at', 'TEXT'],
+    ['updated_at', 'TEXT'],
+  ];
+  db.all('PRAGMA table_info(opportunity_questions)', [], (err, rows) => {
+    if (err) {
+      console.error('Failed to inspect opportunity_questions table', err);
+      return;
+    }
+    const existing = new Set(rows.map(row => row.name));
+    for (const [name, type] of columns) {
+      if (!existing.has(name)) {
+        db.run(`ALTER TABLE opportunity_questions ADD COLUMN ${name} ${type}`, alterErr => {
+          if (alterErr) console.error(`Failed to add opportunity_questions.${name}`, alterErr);
+        });
+      }
+    }
   });
 }
 

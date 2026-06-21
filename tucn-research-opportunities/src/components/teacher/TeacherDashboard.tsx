@@ -4,6 +4,7 @@ import { Plus, ChevronDown, Users, FileText } from 'lucide-react';
 import { Opportunity, Application, User } from '../../types';
 import { downloadApplicationFile } from '../../api';
 import EditOpportunity from './EditOpportunity';
+import ProfessorQuestions from './ProfessorQuestions';
 
 interface Props {
   currentUser: User;
@@ -81,6 +82,9 @@ export default function TeacherDashboard({ currentUser, opportunities, applicati
           <div className="text-[11px] uppercase tracking-widest text-zinc-400 mt-1.5">Total applicants</div>
         </div>
       </div>
+
+      {/* Student questions for my opportunities */}
+      <ProfessorQuestions />
 
       {myOpps.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
